@@ -270,6 +270,33 @@ def preview(api, source_id, target_id):
                 raise CopyError("Botun hedef sunucuda Yönetici (Administrator) yetkisi yok. Bot rolüne Administrator verin; bot rolü korunacaktır. Hiçbir şey silinmedi.")
             raise CopyError("Hedef sunucuda Yönetici (Administrator) yetkisi gerekiyor. Bu hedefte işlem yapılmadı.")
     protected_role_ids = sorted(member_role_ids)
+    if not is_owner:
+        actor_top_role_position = max(
+            (int(r.get("position", 0)) for r in target["roles"] if r["id"] in member_role_ids),
+            default=0
+        )
+        unmanageable_roles = [
+            r for r in target["roles"]
+            if r["id"] != target_id and not r.get("managed")
+            and r["id"] not in member_role_ids
+            and int(r.get("position", 0)) >= actor_top_role_position
+        ]
+        if unmanageable_roles:
+            role_names = ", ".join(r["name"] for r in sorted(
+                unmanageable_roles, key=lambda item: int(item["id"])
+            )[:3])
+            raise CopyError(
+                f"En üst rolün ({actor_top_role_position}. sıra), yönetilmesi gereken bazı hedef rollerin "
+                f"üzerinde değil: {role_names}. Aktarımdan önce botun/hesabın en üst rolünü bu rollerin "
+                "üstüne taşıyın. Hiçbir şey silinmedi."
+            )
+        roles_to_create = len(source["roles"]) - 1
+        if actor_top_role_position <= roles_to_create:
+            raise CopyError(
+                f"Kaynakta {roles_to_create} rol oluşturulacak; hesabın/botun en üst rolü "
+                f"{actor_top_role_position}. sırada. Yeni rollerin hiyerarşide altına yerleşebilmesi için "
+                f"en üst rolünü en az {roles_to_create + 1}. sıraya taşıyın. Hiçbir şey silinmedi."
+            )
     if not source["roles"] or not any(r["id"] == source_id for r in source["roles"]):
         raise CopyError("Kaynak @everyone rolü okunamadı.")
     retained = [r for r in target["roles"] if r.get("managed")]

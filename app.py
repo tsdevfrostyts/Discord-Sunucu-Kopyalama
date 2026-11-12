@@ -132,9 +132,13 @@ class App(ModernWindow):
                     self.update_metrics(value)
                     self.show_stage(1, "İncelendi")
                     s, t = value["source"], value["target"]
-                    categories = sum(c["type"] == 4 for c in s["channels"])
+                    copy_channels = value["copy_channels"]
+                    skipped_channels = value["skipped_channels"]
+                    categories = sum(c["type"] == 4 for c in copy_channels)
                     deleted_roles = sum(r["id"] != value["target_id"] and not r.get("managed") for r in t["roles"])
-                    text = f"Kaynak: {s['guild']['name']} · {len(s['roles']) - 1} rol, {categories} kategori, {len(s['channels']) - categories} kanal\nHedef: {t['guild']['name']} · {deleted_roles} rol ve {len(t['channels'])} kanal için silme denenecek\nYalnızca rol bazlı kanal izinleri aktarılır. Kişisel izinler ve sunucu ayarları aktarılmaz."
+                    text = f"Kaynak: {s['guild']['name']} · {len(s['roles']) - 1} rol, {categories} kategori, {len(copy_channels) - categories} kanal\nHedef: {t['guild']['name']} · {deleted_roles} rol ve {len(t['channels'])} kanal için silme denenecek\nYalnızca rol bazlı kanal izinleri aktarılır. Kişisel izinler ve sunucu ayarları aktarılmaz."
+                    if skipped_channels:
+                        text += f"\nKopyalanmayacak özel kanallar: {len(skipped_channels)} (tür 20 ve bağlı kanallar)"
                     if value["warnings"]:
                         text += "\n" + "\n".join("• " + warning for warning in value["warnings"])
                     self.set_text(self.summary, text)

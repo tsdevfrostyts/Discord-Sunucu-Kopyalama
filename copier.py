@@ -186,9 +186,30 @@ def preview(api, source_id, target_id):
         warnings.add("Kişiye özel kanal izinleri atlanır; yalnızca rollere verilen kanal izinleri aktarılır.")
     identity_roles = {r["id"]: r["id"] for r in source["roles"]}
     identity_parents = {c["id"]: c["id"] for c in source["channels"] if c["type"] == 4}
+    unsupported_roots = {c["id"] for c in source["channels"] if c.get("type") == 20}
+    skipped_ids = set(unsupported_roots)
+    changed = True
+    while changed:
+        changed = False
+        for channel in source["channels"]:
+            if channel["id"] not in skipped_ids and channel.get("parent_id") in skipped_ids:
+                skipped_ids.add(channel["id"])
+                changed = True
+    copy_channels, skipped_channels = [], []
     for channel in source["channels"]:
+        if channel["id"] in skipped_ids:
+            skipped_channels.append(channel)
+            continue
         channel_payload(channel, identity_roles, identity_parents)
+        copy_channels.append(channel)
+    if unsupported_roots:
+        dependent_count = len(skipped_channels) - len(unsupported_roots)
+        warnings.add(
+            f"Discord'un belgelenmiş kanal türleri arasında bulunmayan 20 türündeki "
+            f"{len(unsupported_roots)} kanal ve bunlara bağlı {dependent_count} kanal atlanacak."
+        )
     return {"source_id": source_id, "target_id": target_id, "source": source, "target": target,
+            "copy_channels": copy_channels, "skipped_channels": skipped_channels,
             "user_id": user["id"], "warnings": sorted(warnings)}
 
 
@@ -240,6 +261,8 @@ def verify(api, plan, roles, channels, expected_channels, failed_deletions):
             raise CopyError("Son kontrolde kanal yapısı veya izinleri uyuşmadı. Hedefi Discord’da inceleyin.")
     groups = {}
     for channel in plan["source"]["channels"]:
+        if channel["id"] not in channels:
+            continue
         bucket = 2 if channel["type"] in (2, 13) else 4 if channel["type"] == 4 else 0
         groups.setdefault((channel.get("parent_id"), bucket), []).append(channel)
     for group in groups.values():
@@ -261,6 +284,7 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
     path = backup(fresh, directory)
     log(f"Yapı yedeği kaydedildi: {path}")
     source, target = fresh["source"], fresh["target"]
+    copy_channels, skipped_channels = fresh["copy_channels"], fresh["skipped_channels"]
     sid, tid = fresh["source_id"], fresh["target_id"]
     deletable_roles = [r for r in target["roles"] if r["id"] != tid and not r.get("managed")]
     managed_roles = [r for r in target["roles"] if r.get("managed")]
@@ -283,6 +307,9 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         else:
             step(f"{'Rol' if kind == 'roles' else 'Kanal'} silindi: {item['name']}")
 
+    for channel in skipped_channels:
+        step(f"KOPYALANMADI | Kanal: {channel.get('name', 'isimsiz')} "
+             f"({channel['id']}) · tür {channel['type']} veya atlanan üst kanal nedeniyle.")
     for channel in sorted(target["channels"], key=lambda c: c["type"] == 4):
         delete("channels", channel, f"/channels/{channel['id']}")
     for role in sorted(deletable_roles, key=lambda r: r.get("position", 0), reverse=True):
@@ -291,7 +318,7 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         failed_deletions["roles"].append(role["id"])
         step(f"SİLİNEMEDİ | Rol: {role['name']} ({role['id']}): Discord tarafından yönetilen rol; devam ediliyor.")
     remaining = snapshot(api, tid)
-    if len(remaining["roles"]) + len(source["roles"]) - 1 > 250 or len(remaining["channels"]) + len(source["channels"]) > 500:
+    if len(remaining["roles"]) + len(source["roles"]) - 1 > 250 or len(remaining["channels"]) + len(copy_channels) > 500:
         raise CopyError("Silinemeyen öğeler nedeniyle Discord rol/kanal sınırı aşılacak. Kopyalama için hedefte yer açın.")
     role_map = {sid: tid}
     ordered_roles = sorted((r for r in source["roles"] if r["id"] != sid), key=lambda r: (r.get("position", 0), int(r["id"])))
@@ -303,14 +330,14 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         api.request("PATCH", f"/guilds/{tid}/roles", [{"id": role_map[r["id"]], "position": i} for i, r in enumerate(ordered_roles, 1)])
     step("Rol sıralaması aktarıldı.")
     channel_map, expected_channels = {}, {}
-    for channel in sorted(source["channels"], key=lambda c: (c["type"] != 4, c.get("position", 0), int(c["id"]))):
+    for channel in sorted(copy_channels, key=lambda c: (c["type"] != 4, c.get("position", 0), int(c["id"]))):
         payload = channel_payload(channel, role_map, channel_map)
         result = api.request("POST", f"/guilds/{tid}/channels", payload)
         channel_map[channel["id"]] = result["id"]
         expected_channels[channel["id"]] = payload
         step(f"Kanal oluşturuldu: {channel['name']}")
-    if source["channels"]:
-        api.request("PATCH", f"/guilds/{tid}/channels", [{"id": channel_map[c["id"]], "position": c.get("position", 0)} for c in source["channels"]])
+    if copy_channels:
+        api.request("PATCH", f"/guilds/{tid}/channels", [{"id": channel_map[c["id"]], "position": c.get("position", 0)} for c in copy_channels])
     step("Kanal sıralaması aktarıldı.")
     final = verify(api, fresh, role_map, channel_map, expected_channels, failed_deletions)
     step("Son kontrol geçti: kopyalanan roller, kanallar ve izinler doğrulandı.")

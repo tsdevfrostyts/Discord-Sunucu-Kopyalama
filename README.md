@@ -4,6 +4,10 @@ Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygul
 
 **[v1.0.1 EXE indir](https://github.com/tsdevfrostyts/Sunucu-Kopyalama/releases/download/v1.0.1/Sunucu-Kopyalama_v1.0.1.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Sunucu-Kopyalama/releases)
 
+## v1.0.2
+
+v1.0.2 kaynak kodu ve Windows paketleme ayarları hazırlandı. EXE ve GitHub Release, **Actions → Publish Windows release → Run workflow** adımından Windows derlemesi ve testler başarılı olduktan sonra yayımlanabilir. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.2.md) bakın.
+
 ## Gizlilik
 
 Uygulama tamamen bilgisayarınızda çalışır. Geliştiriciye hiçbir bilgi veya telemetri göndermez; analiz, reklam veya harici veri toplama servisi içermez. İşlemleri gerçekleştirmek için internet üzerinden **doğrudan Discord API’sine** bağlanır; kullanıcı token’i yalnızca bu API’ye gönderilir.
@@ -28,9 +32,9 @@ Kaynak incelemesinde uygulamanın kök sertifika eklediği, otomatik başlatma k
 
 **Antivirüs tespiti, dijital imza güveni ve SmartScreen itibarı ayrı değerlendirmelerdir.** Mevcut EXE kendinden imzalıdır; sertifikası bağımsız, Windows'un güvendiği bir otorite tarafından onaylanmamıştır. Bu nedenle “yayıncı doğrulanamadı” veya güvenilmeyen kök uyarısı görülebilir. Zaman damgası yayıncı kimliğini onaylamaz. Kullanıcı sayısının artması bu sertifikayı otomatik olarak güvenilir yapmaz. SmartScreen'in dosya/yayıncı itibarı zamanla değişebilir; belirli bir kullanıcı sayısında veya birkaç hafta içinde onay garantisi yoktur. [Microsoft'un açıklaması](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).
 
-Bir tarama sonucu uygulamanın bütünü için güvenlik garantisi değildir; açık kaynak olması veya imza bulunması da tek başına yeterli değildir. Kaynak kodunu ve [bu sürümdeki EXE'nin VirusTotal sonucunu](https://www.virustotal.com/gui/file/b9c54eead0fea243b368639011d29ff5e5dbafe5241ce958bf526e023d947737/detection) birlikte değerlendirebilirsiniz. Uyarıları gidermek için Windows/antivirüs korumalarını kapatmanız veya kök sertifika yüklemeniz istenmez.
+Bir tarama sonucu uygulamanın bütünü için güvenlik garantisi değildir; açık kaynak olması veya imza bulunması da tek başına yeterli değildir. Kaynak kodunu ve [v1.0.1 EXE'nin VirusTotal sonucunu](https://www.virustotal.com/gui/file/b9c54eead0fea243b368639011d29ff5e5dbafe5241ce958bf526e023d947737/detection) birlikte değerlendirebilirsiniz. Uyarıları gidermek için Windows/antivirüs korumalarını kapatmanız veya kök sertifika yüklemeniz istenmez.
 
-22 Ekim 2026 tarihinde bu sürümün son EXE taraması **4/70** tespit bildirdi: Bkav Pro, Elastic, Microsoft (`Trojan:Win32/Wacatac.C!ml`) ve SecureAge. Aynı dosyanın yerel Defender taramasında tehdit bulunmadı; motor, bulut ve tanım farklılıkları nedeniyle sonuçlar değişebilir. Bu farklılık dört tespitin yanlış olduğunu kanıtlamaz. VirusTotal ayrıntılarındaki `invalid-signature` etiketinin açıklaması, imza zincirinin güvenilmeyen bir kökte sonlanmasıdır; mevcut kendinden imzalı sertifika için beklenen güven sınırlamasıdır.
+22 Ekim 2026 tarihinde v1.0.1 EXE'sinin son taraması **4/70** tespit bildirdi: Bkav Pro, Elastic, Microsoft (`Trojan:Win32/Wacatac.C!ml`) ve SecureAge. Aynı dosyanın yerel Defender taramasında tehdit bulunmadı; motor, bulut ve tanım farklılıkları nedeniyle sonuçlar değişebilir. Bu farklılık dört tespitin yanlış olduğunu kanıtlamaz. VirusTotal ayrıntılarındaki `invalid-signature` etiketinin açıklaması, imza zincirinin güvenilmeyen bir kökte sonlanmasıdır; mevcut kendinden imzalı sertifika için beklenen güven sınırlamasıdır.
 
 Paketleme davranışı için: [PyInstaller'ın tek dosya çalışma açıklaması](https://pyinstaller.org/en/stable/operating-mode.html#how-the-one-file-program-works).
 
@@ -55,7 +59,7 @@ Windows 10/11 x64, Python 3.14 ve PowerShell ile:
 .\build.ps1
 ```
 
-Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.1.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
+Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.2.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
 
 Kaynaktan açmak için:
 
@@ -65,10 +69,10 @@ Kaynaktan açmak için:
 
 ## Doğrulama
 
-v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve üretilen EXE’nin arayüz öz denetimi geçti. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
+v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2 test paketi bir yeni kanal türü 20 regresyon testi içerir; Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
 
 ## Lisans
 
 [MIT](LICENSE). CustomTkinter arayüzü/simgesi ve diğer bileşenlerin lisansları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasındadır. Discord ile bağlantılı veya Discord tarafından onaylanmış bir ürün değildir.
 
-Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.1.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.
+Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.2.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.

@@ -273,6 +273,29 @@ class CopierTests(unittest.TestCase):
             self.plan()
         self.assert_no_writes()
 
+    def test_channel_type_20_is_skipped_without_blocking_supported_channels(self):
+        special_id = "111111111111111124"
+        child_id = "111111111111111125"
+        self.api.states[SOURCE]["channels"].extend([
+            {"id": special_id, "name": "özel-kanal", "type": 20, "position": 3,
+             "permission_overwrites": []},
+            {"id": child_id, "name": "özel-alt-kanal", "type": 0, "position": 4,
+             "parent_id": special_id, "permission_overwrites": []},
+        ])
+        plan = self.plan()
+        skipped_ids = {channel["id"] for channel in plan["skipped_channels"]}
+        self.assertEqual(skipped_ids, {special_id, child_id})
+        self.assertTrue(any("20 türündeki 1 kanal" in warning for warning in plan["warnings"]))
+        messages = []
+        result = execute(self.api, plan, self.directory, log=messages.append)
+        target_names = {channel["name"] for channel in self.api.states[TARGET]["channels"]}
+        self.assertTrue({"Genel", "sohbet", "Ses"} <= target_names)
+        self.assertNotIn("özel-kanal", target_names)
+        self.assertNotIn("özel-alt-kanal", target_names)
+        self.assertEqual(result["deletion_failures"], 0)
+        self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-kanal") for message in messages))
+        self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-alt-kanal") for message in messages))
+
     def test_forum_voice_and_converted_special_channels_copy_without_extra_settings(self):
         for original_kind, expected_kind in ((0, 0), (2, 2), (5, 0), (13, 2), (15, 15), (16, 0)):
             with self.subTest(original_kind=original_kind):

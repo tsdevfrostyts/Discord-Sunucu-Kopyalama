@@ -2,11 +2,15 @@
 
 Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygulaması.
 
-**[v1.0.5 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.5/Sunucu-Kopyalama_v1.0.5.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
+**Kullanıcı sürümü:** [Sunucu-Kopyalama_v1.0.6_Kullanıcı.exe](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.6/Sunucu-Kopyalama_v1.0.6_Kullan%C4%B1c%C4%B1.exe)
 
-## v1.0.5
+**Bot sürümü:** [Sunucu-Kopyalama_v1.0.6_Bot.exe](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.6/Sunucu-Kopyalama_v1.0.6_Bot.exe) · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
-v1.0.5, başarılı Discord yanıtlarındaki `X-RateLimit-Reset-After` değerinin tüm API isteklerine uygulanıp uzun bekleme oluşturmasını engeller. Gerçek `429` yanıtlarında otomatik uzun bekleme/tekrar deneme yerine işlem durdurulur ve Discord'un bildirdiği süre gösterilir. Rol/kanal/kategori oluşturma ve silme istekleri arasında 1,5 saniye bırakılır. Kanal ve kategoriler önce izinler eklenmeden oluşturulur, topluca sıralanır ve rol izinleri son aşamada uygulanır. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.5.md) bakın.
+## v1.0.6
+
+v1.0.6 iki ayrı EXE üretir: kullanıcı token’li mevcut bağlantı ve resmi Discord Bot token’li bağlantı. Bot sürümünde Authorization başlığı `Bot` şemasıyla gönderilir; botun iki sunucuda da bulunması, kaynakta tüm kanalları görebilmesi ve hedefte Administrator yetkisi ile yeterli rol hiyerarşisine sahip olması doğrulanır. Botun atanmış rolleri silinmez. v1.0.5’in 1,5 saniyelik oluşturma/silme aralığı, izinleri son aşamada uygulama ve 429’da beklemeden durma davranışı korunur. [v1.0.6 sürüm notları](RELEASE_NOTES_v1.0.6.md).
+
+> **Önerilen yöntem Bot sürümüdür.** Kullanıcı token’ini otomasyonda kullanmak Discord’un self-bot kurallarına aykırıdır ve hesabın kapatılmasına neden olabilir.
 
 ## Önceki sürüm: v1.0.4
 
@@ -18,7 +22,7 @@ Tür 20 kanal türü ve bağlı alt kanallar desteklenmeyen olarak atlanır. Ayr
 
 ## Gizlilik
 
-Uygulama tamamen bilgisayarınızda çalışır. Geliştiriciye hiçbir bilgi veya telemetri göndermez; analiz, reklam veya harici veri toplama servisi içermez. İşlemleri gerçekleştirmek için internet üzerinden **doğrudan Discord API’sine** bağlanır; kullanıcı token’i yalnızca bu API’ye gönderilir.
+Uygulama tamamen bilgisayarınızda çalışır. Geliştiriciye hiçbir bilgi veya telemetri göndermez; analiz, reklam veya harici veri toplama servisi içermez. İşlemleri gerçekleştirmek için internet üzerinden **doğrudan Discord API’sine** bağlanır; seçilen sürümün kullanıcı veya bot token’i yalnızca bu API’ye gönderilir.
 
 Token uygulama tarafından diske veya işlem günlüğüne yazılmaz. Önizleme, hata ve iptal sonrasında tekrar denemek için bellekte tutulur; kopyalama doğrulanarak tamamlandığında veya uygulama kapatıldığında temizlenir. Kaynak/hedef sunucu yapıları yerel JSON yedeğine yazılır; bu dosyalar sunucu/rol/kanal kimlikleri ve izin bilgileri içerir. Yedekleri paylaşmadan önce inceleyin.
 
@@ -48,16 +52,16 @@ Paketleme davranışı için: [PyInstaller'ın tek dosya çalışma açıklamas�
 
 ## Kullanım
 
-1. EXE dosyasını açın. Python kurulumu gerekmez.
-2. Kendi hesabınızın kullanıcı token’ini ve kaynak/hedef sunucu ID’lerini girin.
-3. Önizlemeyi inceleyip kopyalamayı başlatın. Hedef sunucunun sahibi veya Yönetici yetkili olmalısınız; kaynak yapıya erişiminiz bulunmalıdır.
-4. İlerlemeyi işlem günlüğünden takip edin. Hesabınıza atanmış roller yetki kaybı yaşanmaması için korunur; silinemeyen diğer roller/kanallar isim ve ID ile gösterilir.
+1. Kullanacağınız EXE’yi açın. Python kurulumu gerekmez.
+2. **Bot sürümü:** Discord Developer Portal’da bir uygulama/bot oluşturun. Botu OAuth2 `bot` kapsamıyla hem kaynak hem hedef sunucuya ekleyin. Kaynakta kopyalanacak tüm kanallarda `View Channel` izni; hedefte `Administrator` izni verin. Botun en üst rolünü hedefte silinecek rollerin üstüne taşıyın. Bot token’ini Bot EXE’ye girin; `Bot ` ön eki isteğe bağlıdır.
+3. **Kullanıcı sürümü:** Kullanıcı token’iyle giriş yapar; bu yöntem Discord kuralları nedeniyle önerilmez.
+4. Kaynak/hedef sunucu ID’lerini girip önizlemeyi inceleyin ve aktarımı başlatın. Bot sürümünde botun atanmış rolleri korunur; rol hiyerarşisi uygun değilse silme başlamadan hata verilir.
 
 **Kopyalama hedefte mevcut rol ve kanalları silmeye çalışır. Kanal silinmesi içindeki mesajları da kaybettirebilir. İkinci onay penceresi yoktur; hedef ID’sini önizlemede kontrol edin.** Yerel yedek yalnızca yapı kaydıdır; otomatik geri yükleme ve mesaj kurtarma sağlamaz. İptal/hata tamamlanmış işlemleri geri almaz.
 
 Yapı yedekleri `%LOCALAPPDATA%\SunucuKopyalayici\backups` altında tutulur; arayüzdeki düğmeyle açılabilir.
 
-Kullanıcı hesabı otomasyonu Discord kurallarına aykırı olabilir ve hesabınızın kısıtlanmasına yol açabilir. Yalnızca kendi hesabınızla ve yönetmeye yetkili olduğunuz sunucularda kullanın. Token’inizi kimseyle paylaşmayın.
+Kullanıcı token’iyle otomasyon Discord’un self-bot kurallarınca yasaktır ve hesabınızın kapatılmasına yol açabilir. Bot token’leri de şifre gibi korunmalıdır; kimseyle paylaşmayın. Bir token açığa çıkarsa Discord Developer Portal’dan sıfırlayın.
 
 ## Kaynaktan çalıştırma ve EXE oluşturma
 
@@ -67,7 +71,7 @@ Windows 10/11 x64, Python 3.14 ve PowerShell ile:
 .\build.ps1
 ```
 
-Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.5.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
+Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.6_Kullanıcı.exe` ve `dist/Sunucu-Kopyalama_v1.0.6_Bot.exe` dosyalarını üretir. Her iki EXE’nin sürüm bilgileri ve paketlenmiş kimlik doğrulama modu ayrı ayrı denetlenir. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
 
 Kaynaktan açmak için:
 
@@ -83,4 +87,4 @@ v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmi�
 
 [MIT](LICENSE). CustomTkinter arayüzü/simgesi ve diğer bileşenlerin lisansları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasındadır. Discord ile bağlantılı veya Discord tarafından onaylanmış bir ürün değildir.
 
-Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.5.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.
+Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.6.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.

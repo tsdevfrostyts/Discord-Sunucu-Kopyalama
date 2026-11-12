@@ -236,11 +236,19 @@ def preview(api, source_id, target_id):
     if user.get("bot"):
         raise CopyError("Bot token’i desteklenmiyor; kullanıcı token’i gerekiyor.")
     source, target = snapshot(api, source_id), snapshot(api, target_id)
-    if target["guild"].get("owner_id") != user["id"]:
+    is_owner = target["guild"].get("owner_id") == user["id"]
+    member_role_ids = set()
+    if not is_owner:
         member = api.request("GET", f"/guilds/{target_id}/members/{user['id']}")
-        member_roles = set(member.get("roles", [])) | {target_id}
-        if not any(int(r["permissions"]) & 8 for r in target["roles"] if r["id"] in member_roles):
+        member_role_ids = set(member.get("roles", []))
+        assigned_role_ids = member_role_ids | {target_id}
+        effective_permissions = 0
+        for role in target["roles"]:
+            if role["id"] in assigned_role_ids:
+                effective_permissions |= int(role.get("permissions") or 0)
+        if not effective_permissions & (1 << 3):
             raise CopyError("Hedef sunucuda Yönetici (Administrator) yetkisi gerekiyor. Bu hedefte işlem yapılmadı.")
+    protected_role_ids = sorted(member_role_ids)
     if not source["roles"] or not any(r["id"] == source_id for r in source["roles"]):
         raise CopyError("Kaynak @everyone rolü okunamadı.")
     retained = [r for r in target["roles"] if r.get("managed")]
@@ -249,6 +257,11 @@ def preview(api, source_id, target_id):
     warnings = set()
     if retained:
         warnings.add(f"Hedefte Discord tarafından yönetilen {len(retained)} entegrasyon rolü korunacak; bunlar silinemez.")
+    if protected_role_ids:
+        warnings.add(
+            f"Hedefte hesabına atanmış {len(protected_role_ids)} rol silinmeyecek; "
+            "kopyalama boyunca mevcut yetkilerin korunması için tutulacak."
+        )
     if any(r.get("managed") for r in source["roles"]):
         warnings.add("Kaynak entegrasyon rolleri normal rol olarak oluşturulur; bot bağlantıları aktarılmaz.")
     if any(o["type"] != 0 for c in source["channels"] for o in c.get("permission_overwrites", [])):
@@ -279,7 +292,8 @@ def preview(api, source_id, target_id):
         )
     return {"source_id": source_id, "target_id": target_id, "source": source, "target": target,
             "copy_channels": copy_channels, "skipped_channels": skipped_channels,
-            "user_id": user["id"], "warnings": sorted(warnings)}
+            "user_id": user["id"], "protected_role_ids": protected_role_ids,
+            "warnings": sorted(warnings)}
 
 
 def backup(plan, directory):
@@ -303,7 +317,9 @@ def verify(api, plan, roles, channels, expected_channels, failed_deletions):
     final = snapshot(api, plan["target_id"])
     final_roles = {r["id"]: r for r in final["roles"]}
     final_channels = {c["id"]: c for c in final["channels"]}
-    expected_role_ids = set(roles.values()) | {r["id"] for r in plan["target"]["roles"] if r.get("managed")}
+    expected_role_ids = (set(roles.values())
+                         | {r["id"] for r in plan["target"]["roles"] if r.get("managed")}
+                         | set(plan.get("protected_role_ids", [])))
     if (not expected_role_ids <= set(final_roles) or set(final_roles) - expected_role_ids - set(failed_deletions["roles"])
             or not set(channels.values()) <= set(final_channels)
             or set(final_channels) - set(channels.values()) - set(failed_deletions["channels"])):
@@ -347,6 +363,8 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
     fresh = preview(api, plan["source_id"], plan["target_id"])
     if fresh["user_id"] != plan["user_id"]:
         raise CopyError("Hesap önizlemeden sonra değişti. Yeniden önizleyin; hiçbir şey silinmedi.")
+    if fresh.get("protected_role_ids", []) != plan.get("protected_role_ids", []):
+        raise CopyError("Hedefte hesabına atanmış roller önizlemeden sonra değişti. Yeniden önizleyin; hiçbir şey silinmedi.")
     for side, label in (("source", "Kaynak"), ("target", "Hedef")):
         if fingerprint(fresh[side]) != fingerprint(plan[side]):
             raise CopyError(f"{label} sunucunun rol/kanal yapısı önizlemeden sonra değişti. Yeniden önizleyin; hiçbir şey silinmedi.")
@@ -355,10 +373,15 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
     source, target = fresh["source"], fresh["target"]
     copy_channels, skipped_channels = fresh["copy_channels"], fresh["skipped_channels"]
     sid, tid = fresh["source_id"], fresh["target_id"]
-    deletable_roles = [r for r in target["roles"] if r["id"] != tid and not r.get("managed")]
+    protected_role_ids = set(fresh.get("protected_role_ids", []))
+    deletable_roles = [r for r in target["roles"]
+                       if r["id"] != tid and not r.get("managed") and r["id"] not in protected_role_ids]
     managed_roles = [r for r in target["roles"] if r.get("managed")]
+    protected_roles = [r for r in target["roles"]
+                       if r["id"] in protected_role_ids and not r.get("managed")]
     failed_deletions = {"roles": [], "channels": []}
-    total = len(target["channels"]) + len(deletable_roles) + len(managed_roles) + len(source["roles"]) - 1 + len(source["channels"]) + 3
+    total = (len(target["channels"]) + len(deletable_roles) + len(managed_roles)
+             + len(protected_roles) + len(source["roles"]) - 1 + len(source["channels"]) + 3)
     done = 0
     def step(text):
         nonlocal done
@@ -386,6 +409,8 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
     for role in managed_roles:
         failed_deletions["roles"].append(role["id"])
         step(f"SİLİNEMEDİ | Rol: {role['name']} ({role['id']}): Discord tarafından yönetilen rol; devam ediliyor.")
+    for role in protected_roles:
+        step(f"KORUNDU | Rol: {role['name']} ({role['id']}) · Hesabına atanmış olduğu için mevcut yetkilerin korunması amacıyla silinmedi.")
     remaining = snapshot(api, tid)
     if len(remaining["roles"]) + len(source["roles"]) - 1 > 250 or len(remaining["channels"]) + len(copy_channels) > 500:
         raise CopyError("Silinemeyen öğeler nedeniyle Discord rol/kanal sınırı aşılacak. Kopyalama için hedefte yer açın.")

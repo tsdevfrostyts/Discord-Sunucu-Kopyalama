@@ -15,6 +15,7 @@ SOURCE = "111111111111111111"
 TARGET = "222222222222222222"
 OWNER = "333333333333333333"
 MEMBER = "444444444444444444"
+BOT_ID = "555555555555555555"
 SOURCE_ROLE = "111111111111111112"
 SOURCE_CATEGORY = "111111111111111121"
 SOURCE_TEXT = "111111111111111122"
@@ -62,6 +63,7 @@ class MemoryAPI:
     def __init__(self):
         self.states = fixture()
         self.user = {"id": OWNER, "bot": False}
+        self.auth_mode = "user"
         self.members = {MEMBER}
         self.member_roles = {OWNER: [TARGET_ROLE]}
         self.calls = []
@@ -258,6 +260,41 @@ class CopierTests(unittest.TestCase):
         self.assertTrue(any(m.startswith("KORUNDU | Rol: Eski") for m in messages))
         self.assertFalse(any(method == "DELETE" and path.endswith("/" + TARGET_ROLE)
                              for method, path, _ in self.api.writes))
+
+    def test_bot_mode_rejects_a_user_account_token_before_mutation(self):
+        self.api.auth_mode = "bot"
+        with self.assertRaisesRegex(CopyError, "bot token"):
+            self.plan()
+        self.assert_no_writes()
+
+    def test_bot_account_can_preview_and_copy_while_its_admin_role_is_protected(self):
+        api = PermissionAwareMemoryAPI()
+        api.auth_mode = "bot"
+        api.user = {"id": BOT_ID, "bot": True}
+        api.member_roles = {BOT_ID: [TARGET_ROLE]}
+        api.states[TARGET]["guild"]["owner_id"] = OWNER
+        next(r for r in api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)["permissions"] = "8"
+
+        plan = preview(api, SOURCE, TARGET)
+        self.assertEqual(plan["auth_mode"], "bot")
+        self.assertEqual(plan["user_id"], BOT_ID)
+        self.assertEqual(plan["protected_role_ids"], [TARGET_ROLE])
+
+        result = execute(api, plan, self.directory)
+        self.assertTrue(any(r["id"] == TARGET_ROLE for r in api.states[TARGET]["roles"]))
+        self.assertTrue(any(c["name"] == "sohbet" for c in api.states[TARGET]["channels"]))
+        self.assertFalse(any(method == "DELETE" and path.endswith("/" + TARGET_ROLE)
+                             for method, path, _ in api.writes))
+        self.assertEqual(result["permission_failures"], 0)
+
+    def test_bot_mode_requires_administrator_permission(self):
+        self.api.auth_mode = "bot"
+        self.api.user = {"id": BOT_ID, "bot": True}
+        self.api.member_roles = {BOT_ID: [TARGET_ROLE]}
+        self.api.states[TARGET]["guild"]["owner_id"] = OWNER
+        with self.assertRaisesRegex(CopyError, "Botun hedef sunucuda Yönetici"):
+            self.plan()
+        self.assert_no_writes()
 
     def test_assigned_admin_role_is_preserved_through_channel_creation(self):
         api = PermissionAwareMemoryAPI()
@@ -669,6 +706,24 @@ class TransportTests(unittest.TestCase):
         with self.assertRaises(CopyError):
             self.api.request("GET", "https://example.invalid/")
         self.assertEqual(len(self.api.opener.calls), 1)
+
+    def test_bot_token_uses_discord_bot_authorization_scheme(self):
+        api = DiscordAPI("synthetic-bot-secret", auth_mode="bot")
+        api.opener = Opener(Response({"id": BOT_ID, "bot": True}))
+        self.assertEqual(api.request("GET", "/users/@me"), {"id": BOT_ID, "bot": True})
+        request, _ = api.opener.calls[0]
+        self.assertEqual(request.get_header("Authorization"), "Bot synthetic-bot-secret")
+
+    def test_bot_token_accepts_optional_bot_prefix_without_double_prefix(self):
+        api = DiscordAPI("Bot synthetic-bot-secret", auth_mode="bot")
+        api.opener = Opener(Response({"id": BOT_ID, "bot": True}))
+        api.request("GET", "/users/@me")
+        request, _ = api.opener.calls[0]
+        self.assertEqual(request.get_header("Authorization"), "Bot synthetic-bot-secret")
+
+    def test_user_mode_rejects_bot_token_prefix(self):
+        with self.assertRaisesRegex(CopyError, "Kullanıcı sürümünde"):
+            DiscordAPI("Bot synthetic-bot-secret", auth_mode="user")
 
     def test_redirect_handler_rejects_cross_origin_and_same_origin_redirects(self):
         handler = NoRedirect()

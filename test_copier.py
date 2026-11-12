@@ -21,6 +21,7 @@ SOURCE_TEXT = "111111111111111122"
 SOURCE_VOICE = "111111111111111123"
 TARGET_ROLE = "222222222222222223"
 MANAGED_ROLE = "222222222222222224"
+HIGH_ROLE = "222222222222222225"
 OLD_CATEGORY = "222222222222222231"
 OLD_CHANNEL = "222222222222222232"
 
@@ -171,6 +172,48 @@ class MemoryAPI:
         raise AssertionError((method, path, data))
 
 
+class PermissionAwareMemoryAPI(MemoryAPI):
+    """Simulates the permission loss that happens when a copy deletes its operator's admin role."""
+
+    def effective_permissions(self):
+        state = self.states[TARGET]
+        if state["guild"].get("owner_id") == self.user["id"]:
+            return (1 << 64) - 1
+        assigned = set(self.member_roles.get(self.user["id"], []))
+        permissions = 0
+        for item in state["roles"]:
+            if item["id"] == TARGET or item["id"] in assigned:
+                permissions |= int(item.get("permissions") or 0)
+        if permissions & (1 << 3):
+            return (1 << 64) - 1
+        return permissions
+
+    def request(self, method, path, data=None):
+        if method != "GET":
+            permissions = self.effective_permissions()
+            if method == "DELETE" and path == f"/guilds/{TARGET}/roles/{HIGH_ROLE}":
+                raise ApiError(403, 50013)  # highest role assigned to the acting member
+            required = None
+            if path == f"/guilds/{TARGET}/roles" and method in ("POST", "PATCH"):
+                required = 1 << 28
+            elif path == f"/guilds/{TARGET}/channels" and method in ("POST", "PATCH"):
+                required = 1 << 4
+            elif path.startswith("/channels/") and method == "DELETE":
+                required = 1 << 4
+            elif "/permissions/" in path and method in ("PUT", "DELETE"):
+                required = 1 << 28
+            if required is not None and not permissions & required:
+                raise ApiError(400, 50013)
+
+        result = super().request(method, path, data)
+        if method == "DELETE" and path.startswith(f"/guilds/{TARGET}/roles/"):
+            role_id = path.rsplit("/", 1)[-1]
+            self.member_roles[self.user["id"]] = [
+                assigned for assigned in self.member_roles.get(self.user["id"], []) if assigned != role_id
+            ]
+        return result
+
+
 class CopierTests(unittest.TestCase):
     def setUp(self):
         self.api = MemoryAPI()
@@ -208,12 +251,35 @@ class CopierTests(unittest.TestCase):
         self.api.states[TARGET]["guild"]["owner_id"] = MEMBER
         next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)["permissions"] = "8"
         plan = self.plan()
-        self.api.fail_write = lambda method, path, data: method == "DELETE" and path.endswith("/" + TARGET_ROLE)
         messages = []
         result = execute(self.api, plan, self.directory, log=messages.append)
         self.assertTrue(any(c["name"] == "sohbet" for c in self.api.states[TARGET]["channels"]))
-        self.assertGreaterEqual(result["remaining_roles"], 1)
-        self.assertTrue(any("SİLİNEMEDİ" in m and TARGET_ROLE in m and "Eski" in m for m in messages))
+        self.assertEqual(result["remaining_roles"], 1)  # only the managed integration role
+        self.assertTrue(any(m.startswith("KORUNDU | Rol: Eski") for m in messages))
+        self.assertFalse(any(method == "DELETE" and path.endswith("/" + TARGET_ROLE)
+                             for method, path, _ in self.api.writes))
+
+    def test_assigned_admin_role_is_preserved_through_channel_creation(self):
+        api = PermissionAwareMemoryAPI()
+        api.states[TARGET]["guild"]["owner_id"] = MEMBER
+        next(r for r in api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)["permissions"] = "8"
+        api.states[TARGET]["roles"].append(role(HIGH_ROLE, "Üst Yetki", 10, str(1 << 28)))
+        api.member_roles[OWNER] = [TARGET_ROLE, HIGH_ROLE]
+        plan = preview(api, SOURCE, TARGET)
+        self.assertEqual(set(plan["protected_role_ids"]), {TARGET_ROLE, HIGH_ROLE})
+
+        messages = []
+        result = execute(api, plan, self.directory, log=messages.append)
+        target_roles = {r["id"] for r in api.states[TARGET]["roles"]}
+        self.assertTrue({TARGET_ROLE, HIGH_ROLE} <= target_roles)
+        self.assertTrue(any(c["name"] == "Genel" and c["type"] == 4 for c in api.states[TARGET]["channels"]))
+        self.assertTrue(any(c["name"] == "sohbet" for c in api.states[TARGET]["channels"]))
+        self.assertFalse(any(method == "DELETE" and path.endswith("/" + TARGET_ROLE)
+                             for method, path, _ in api.writes))
+        self.assertFalse(any(method == "DELETE" and path.endswith("/" + HIGH_ROLE)
+                             for method, path, _ in api.writes))
+        self.assertEqual(result["permission_failures"], 0)
+        self.assertTrue(any(m.startswith("KORUNDU | Rol: Eski") for m in messages))
 
     def test_admin_is_rechecked_before_first_mutation(self):
         self.api.states[TARGET]["guild"]["owner_id"] = MEMBER

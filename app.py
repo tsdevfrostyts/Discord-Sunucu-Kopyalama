@@ -41,7 +41,7 @@ class App(ModernWindow):
 
     def append_log(self, text, error=False):
         self.log_view.configure(state="normal")
-        self.log_view.insert("end", text + "\n", ("error",) if error or text.startswith("SİLİNEMEDİ |") else ())
+        self.log_view.insert("end", text + "\n", ("error",) if error or text.startswith(("SİLİNEMEDİ |", "İZİN AKTARILAMADI |", "GÜVENLİK UYARISI |")) else ())
         self.log_view.see("end")
         self.log_view.configure(state="disabled")
 
@@ -151,9 +151,12 @@ class App(ModernWindow):
                     self.status.set("Tamamlandı · Son yapı ve izin kontrolü geçti")
                     self.append_log(f"Kopyalama tamamlandı. Yapı yedeği: {value['backup']}")
                     self.clear_token()
-                    if value["deletion_failures"]:
-                        self.status.set("Aktarım tamamlandı · Silinemeyen öğeler var; kırmızı satırları incele")
-                        self.append_log(f"Uyarı: {value['deletion_failures']} öğenin silme adımı atlandı. Hedefte {value['remaining_roles']} eski rol ve {value['remaining_channels']} eski kanal kaldı.", error=True)
+                    if value["deletion_failures"] or value["permission_failures"]:
+                        self.status.set("Aktarım tamamlandı · Silme veya kanal izinleriyle ilgili uyarılar var")
+                        if value["deletion_failures"]:
+                            self.append_log(f"Uyarı: {value['deletion_failures']} silme adımı başarısız oldu. Hedefte {value['remaining_roles']} eski rol ve {value['remaining_channels']} eski kanal kaldı.", error=True)
+                        if value["permission_failures"]:
+                            self.append_log(f"Uyarı: {value['permission_failures']} kanal rol izni uygulanamadı. Güvenlik için ilgili kanallarda @everyone VIEW_CHANNEL engeli korunmuş olabilir.", error=True)
                         self.show_stage(2, "Uyarılı bitti")
                     else:
                         self.show_stage(2, "Tamamlandı")

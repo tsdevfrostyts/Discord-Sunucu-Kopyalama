@@ -15,10 +15,23 @@ from modern_ui import COLORS, ModernWindow
 BASE = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "SunucuKopyalayici"
 
 
+def detect_auth_mode(argv=None, executable=None):
+    """Select the bot build by its _Bot filename; source runs default to user mode."""
+    argv = sys.argv if argv is None else argv
+    executable = sys.argv[0] if executable is None else executable
+    if "--bot-mode" in argv or Path(executable).stem.lower().endswith("_bot"):
+        return "bot"
+    return "user"
+
+
 class App(ModernWindow):
-    def __init__(self, demo=False):
+    def __init__(self, demo=False, auth_mode="user"):
+        if auth_mode not in ("user", "bot"):
+            raise ValueError("Unknown authentication mode")
+        self.auth_mode = auth_mode
         super().__init__()
         self.demo = demo
+        self.title("Sunucu Kopyalayıcı · " + ("Bot" if auth_mode == "bot" else "Kullanıcı"))
         self.events = queue.Queue()
         self.cancel = threading.Event()
         self.api = self.plan = None
@@ -89,7 +102,9 @@ class App(ModernWindow):
             return
         self.plan = None
         try:
-            self.api = DiscordAPI(self.token.get(), self.cancel, lambda text: self.events.put(("log", text)))
+            self.api = DiscordAPI(self.token.get(), self.cancel,
+                                  lambda text: self.events.put(("log", text)),
+                                  auth_mode=self.auth_mode)
         except CopyError as exc:
             messagebox.showerror("Kontrol edilemedi", str(exc), parent=self)
             return
@@ -208,8 +223,9 @@ def main():
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
     except (AttributeError, OSError):
         pass
+    auth_mode = detect_auth_mode()
     if "--self-check" in sys.argv:
-        app = App(demo=True)
+        app = App(demo=True, auth_mode=auth_mode)
         app.update()
         assert app.copy_button.cget("state") == "disabled"
         assert app.token_entry.cget("show") == "•"
@@ -225,9 +241,9 @@ def main():
         app.destroy()
         if "--report" in sys.argv:
             path = Path(sys.argv[sys.argv.index("--report") + 1])
-            path.write_text(json.dumps({"gui": "ok", "token_masked": True, "copy_disabled": True, "animations": "enabled", "extra_confirmation": "removed", "logo": "ok", "large_log": True, "network": "not used"}), encoding="utf-8")
+            path.write_text(json.dumps({"gui": "ok", "auth_mode": auth_mode, "token_masked": True, "copy_disabled": True, "animations": "enabled", "extra_confirmation": "removed", "logo": "ok", "large_log": True, "network": "not used"}), encoding="utf-8")
         return
-    App(demo="--demo" in sys.argv).mainloop()
+    App(demo="--demo" in sys.argv, auth_mode=auth_mode).mainloop()
 
 
 if __name__ == "__main__":

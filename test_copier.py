@@ -251,7 +251,7 @@ class CopierTests(unittest.TestCase):
 
     def test_non_owner_administrator_can_copy_without_retyping_id(self):
         self.api.states[TARGET]["guild"]["owner_id"] = MEMBER
-        next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)["permissions"] = "8"
+        next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE).update(permissions="8", position=5)
         plan = self.plan()
         messages = []
         result = execute(self.api, plan, self.directory, log=messages.append)
@@ -273,7 +273,7 @@ class CopierTests(unittest.TestCase):
         api.user = {"id": BOT_ID, "bot": True}
         api.member_roles = {BOT_ID: [TARGET_ROLE]}
         api.states[TARGET]["guild"]["owner_id"] = OWNER
-        next(r for r in api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)["permissions"] = "8"
+        next(r for r in api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE).update(permissions="8", position=5)
 
         plan = preview(api, SOURCE, TARGET)
         self.assertEqual(plan["auth_mode"], "bot")
@@ -287,11 +287,23 @@ class CopierTests(unittest.TestCase):
                              for method, path, _ in api.writes))
         self.assertEqual(result["permission_failures"], 0)
 
+    def test_bot_mode_refuses_when_its_highest_role_is_below_target_roles(self):
+        self.api.auth_mode = "bot"
+        self.api.user = {"id": BOT_ID, "bot": True}
+        self.api.member_roles = {BOT_ID: [TARGET_ROLE]}
+        self.api.states[TARGET]["guild"]["owner_id"] = OWNER
+        admin_role = next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)
+        admin_role.update(permissions="8", position=1)
+        with self.assertRaisesRegex(CopyError, "en üst rolün"):
+            self.plan()
+        self.assert_no_writes()
+
     def test_bot_mode_requires_administrator_permission(self):
         self.api.auth_mode = "bot"
         self.api.user = {"id": BOT_ID, "bot": True}
         self.api.member_roles = {BOT_ID: [TARGET_ROLE]}
         self.api.states[TARGET]["guild"]["owner_id"] = OWNER
+        next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)["position"] = 5
         with self.assertRaisesRegex(CopyError, "Botun hedef sunucuda Yönetici"):
             self.plan()
         self.assert_no_writes()
@@ -321,7 +333,7 @@ class CopierTests(unittest.TestCase):
     def test_admin_is_rechecked_before_first_mutation(self):
         self.api.states[TARGET]["guild"]["owner_id"] = MEMBER
         admin = next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)
-        admin["permissions"] = "8"
+        admin.update(permissions="8", position=5)
         plan = self.plan()
         admin["permissions"] = "0"
         with self.assertRaises(CopyError):

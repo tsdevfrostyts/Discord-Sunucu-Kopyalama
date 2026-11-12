@@ -255,19 +255,6 @@ def preview(api, source_id, target_id):
         warnings.add("Kaynak entegrasyon rolleri normal rol olarak oluşturulur; bot bağlantıları aktarılmaz.")
     if any(o["type"] != 0 for c in source["channels"] for o in c.get("permission_overwrites", [])):
         warnings.add("Kişiye özel kanal izinleri atlanır; yalnızca rollere verilen kanal izinleri aktarılır.")
-    view_channel = 1 << 10
-    private_channels = [
-        c for c in copy_channels
-        if any(o["type"] == 0 and o["id"] == source_id
-               and int(o.get("deny", "0")) & view_channel
-               and not int(o.get("allow", "0")) & view_channel
-               for o in c.get("permission_overwrites", []))
-    ]
-    if private_channels:
-        warnings.add(
-            f"{len(private_channels)} gizli kanal/kategori önce izin tanımlanmadan oluşturulup sıralanacak; "
-            "izinler son aşamada uygulanana kadar @everyone varsayılan görünürlüğü geçici olarak geçerli olabilir."
-        )
     identity_roles = {r["id"]: r["id"] for r in source["roles"]}
     identity_parents = {c["id"]: c["id"] for c in source["channels"] if c["type"] == 4}
     unsupported_roots = {c["id"] for c in source["channels"] if c.get("type") == 20}
@@ -286,6 +273,19 @@ def preview(api, source_id, target_id):
             continue
         channel_payload(channel, identity_roles, identity_parents)
         copy_channels.append(channel)
+    view_channel = 1 << 10
+    private_channels = [
+        c for c in copy_channels
+        if any(o["type"] == 0 and o["id"] == source_id
+               and int(o.get("deny", "0")) & view_channel
+               and not int(o.get("allow", "0")) & view_channel
+               for o in c.get("permission_overwrites", []))
+    ]
+    if private_channels:
+        warnings.add(
+            f"{len(private_channels)} gizli kanal/kategori önce izin tanımlanmadan oluşturulup sıralanacak; "
+            "izinler son aşamada uygulanana kadar @everyone varsayılan görünürlüğü geçici olarak geçerli olabilir."
+        )
     if unsupported_roots:
         dependent_count = len(skipped_channels) - len(unsupported_roots)
         warnings.add(

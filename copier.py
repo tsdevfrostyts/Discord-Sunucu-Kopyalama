@@ -252,7 +252,7 @@ def preview(api, source_id, target_id):
     if not source["roles"] or not any(r["id"] == source_id for r in source["roles"]):
         raise CopyError("Kaynak @everyone rolü okunamadı.")
     retained = [r for r in target["roles"] if r.get("managed")]
-    if len(source["roles"]) + len(retained) > 250 or len(source["channels"]) > 500:
+    if len(source["roles"]) + len(retained) + len(protected_role_ids) > 250 or len(source["channels"]) > 500:
         raise CopyError("Hedefin Discord rol veya kanal sınırı aşılacak.")
     warnings = set()
     if retained:

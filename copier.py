@@ -46,13 +46,24 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class DiscordAPI:
-    def __init__(self, token, cancel=None, log=lambda text: None):
+    def __init__(self, token, cancel=None, log=lambda text: None, auth_mode="user"):
+        if auth_mode not in ("user", "bot"):
+            raise CopyError("Bilinmeyen kimlik doğrulama türü.")
         token = token.strip()
-        if not token or any(c.isspace() for c in token) or token.lower().startswith(("bot ", "bearer ")):
-            raise CopyError("Yalnızca kendi hesabınızın kullanıcı token’ini girin.")
+        if auth_mode == "bot":
+            if token.lower().startswith("bot "):
+                token = token[4:].strip()
+            if not token or any(c.isspace() for c in token) or token.lower().startswith("bearer "):
+                raise CopyError("Bot sürümünde geçerli bir bot token’i girin (Bot ön eki isteğe bağlıdır).")
+            authorization = f"Bot {token}"
+        else:
+            if not token or any(c.isspace() for c in token) or token.lower().startswith(("bot ", "bearer ")):
+                raise CopyError("Kullanıcı sürümünde kendi hesabınızın kullanıcı token’ini girin.")
+            authorization = token
         if not token.isascii():
             raise CopyError("Token geçerli ASCII karakterlerinden oluşmalıdır.")
-        self._token = token
+        self.auth_mode = auth_mode
+        self._token = authorization
         self.cancel = cancel or threading.Event()
         self.log = log
         self.opener = urllib.request.build_opener(NoRedirect)
@@ -222,13 +233,32 @@ def preview(api, source_id, target_id):
     if source_id == target_id:
         raise CopyError("Kaynak ve hedef aynı sunucu olamaz.")
     user = api.request("GET", "/users/@me")
-    if user.get("bot"):
-        raise CopyError("Bot token’i desteklenmiyor; kullanıcı token’i gerekiyor.")
-    source, target = snapshot(api, source_id), snapshot(api, target_id)
+    auth_mode = getattr(api, "auth_mode", "user")
+    if auth_mode == "bot" and not user.get("bot"):
+        raise CopyError("Bot sürümünde bir Discord bot token’i kullanmalısınız.")
+    if auth_mode == "user" and user.get("bot"):
+        raise CopyError("Kullanıcı sürümünde kullanıcı token’i kullanın; bot token’i için Bot sürümünü açın.")
+    try:
+        source = snapshot(api, source_id)
+    except ApiError as exc:
+        if auth_mode == "bot" and exc.status in (403, 404):
+            raise CopyError("Bot kaynak sunucuya eklenmemiş veya sunucuyu okumak için gerekli erişime sahip değil. Botu kaynak sunucuya ekleyin ve kanal görüntüleme erişimi verin.") from None
+        raise
+    try:
+        target = snapshot(api, target_id)
+    except ApiError as exc:
+        if auth_mode == "bot" and exc.status in (403, 404):
+            raise CopyError("Bot hedef sunucuya eklenmemiş veya sunucuyu okumak için gerekli erişime sahip değil. Botu hedef sunucuya ekleyin.") from None
+        raise
     is_owner = target["guild"].get("owner_id") == user["id"]
     member_role_ids = set()
     if not is_owner:
-        member = api.request("GET", f"/guilds/{target_id}/members/{user['id']}")
+        try:
+            member = api.request("GET", f"/guilds/{target_id}/members/{user['id']}")
+        except ApiError as exc:
+            if auth_mode == "bot" and exc.status in (403, 404):
+                raise CopyError("Bot hedef sunucuda üye olarak bulunamadı. Botu hedef sunucuya ekleyip yeniden önizleyin.") from None
+            raise
         member_role_ids = set(member.get("roles", []))
         assigned_role_ids = member_role_ids | {target_id}
         effective_permissions = 0
@@ -236,6 +266,8 @@ def preview(api, source_id, target_id):
             if role["id"] in assigned_role_ids:
                 effective_permissions |= int(role.get("permissions") or 0)
         if not effective_permissions & (1 << 3):
+            if auth_mode == "bot":
+                raise CopyError("Botun hedef sunucuda Yönetici (Administrator) yetkisi yok. Bot rolüne Administrator verin; bot rolü korunacaktır. Hiçbir şey silinmedi.")
             raise CopyError("Hedef sunucuda Yönetici (Administrator) yetkisi gerekiyor. Bu hedefte işlem yapılmadı.")
     protected_role_ids = sorted(member_role_ids)
     if not source["roles"] or not any(r["id"] == source_id for r in source["roles"]):
@@ -247,8 +279,9 @@ def preview(api, source_id, target_id):
     if retained:
         warnings.add(f"Hedefte Discord tarafından yönetilen {len(retained)} entegrasyon rolü korunacak; bunlar silinemez.")
     if protected_role_ids:
+        subject = "Bot hesabına" if auth_mode == "bot" else "Hesabına"
         warnings.add(
-            f"Hedefte hesabına atanmış {len(protected_role_ids)} rol silinmeyecek; "
+            f"Hedefte {subject} atanmış {len(protected_role_ids)} rol silinmeyecek; "
             "kopyalama boyunca mevcut yetkilerin korunması için tutulacak."
         )
     if any(r.get("managed") for r in source["roles"]):
@@ -294,8 +327,8 @@ def preview(api, source_id, target_id):
         )
     return {"source_id": source_id, "target_id": target_id, "source": source, "target": target,
             "copy_channels": copy_channels, "skipped_channels": skipped_channels,
-            "user_id": user["id"], "protected_role_ids": protected_role_ids,
-            "warnings": sorted(warnings)}
+            "user_id": user["id"], "auth_mode": auth_mode,
+            "protected_role_ids": protected_role_ids, "warnings": sorted(warnings)}
 
 
 def backup(plan, directory):
@@ -363,8 +396,8 @@ def verify(api, plan, roles, channels, expected_channels, failed_deletions):
 
 def execute(api, plan, directory, log=lambda text: None, progress=lambda done, total: None):
     fresh = preview(api, plan["source_id"], plan["target_id"])
-    if fresh["user_id"] != plan["user_id"]:
-        raise CopyError("Hesap önizlemeden sonra değişti. Yeniden önizleyin; hiçbir şey silinmedi.")
+    if fresh["user_id"] != plan["user_id"] or fresh.get("auth_mode", "user") != plan.get("auth_mode", "user"):
+        raise CopyError("Kimlik doğrulama veya hesap önizlemeden sonra değişti. Yeniden önizleyin; hiçbir şey silinmedi.")
     if fresh.get("protected_role_ids", []) != plan.get("protected_role_ids", []):
         raise CopyError("Hedefte hesabına atanmış roller önizlemeden sonra değişti. Yeniden önizleyin; hiçbir şey silinmedi.")
     for side, label in (("source", "Kaynak"), ("target", "Hedef")):

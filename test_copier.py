@@ -292,7 +292,10 @@ class CopierTests(unittest.TestCase):
         self.assertTrue({"Genel", "sohbet", "Ses"} <= target_names)
         self.assertNotIn("özel-kanal", target_names)
         self.assertNotIn("özel-alt-kanal", target_names)
-        self.assertEqual(result["deletion_failures"], 0)
+        # The fixture contains one Discord-managed role that is intentionally retained.
+        self.assertEqual(result["deletion_failures"], 1)
+        self.assertEqual(result["remaining_roles"], 1)
+        self.assertTrue(any(role_item["id"] == MANAGED_ROLE for role_item in self.api.states[TARGET]["roles"]))
         self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-kanal") for message in messages))
         self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-alt-kanal") for message in messages))
 

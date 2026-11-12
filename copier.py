@@ -21,12 +21,16 @@ class Cancelled(CopyError):
 
 
 class ApiError(CopyError):
-    def __init__(self, status, code=None):
+    def __init__(self, status, code=None, detail=None):
         self.status = status
+        self.code = code
         hints = {401: "Token geçersiz veya süresi dolmuş.", 403: "Discord işlemi reddetti; yetkileri veya hesap doğrulamasını kontrol edin.",
                  404: "Sunucu, kanal veya üye bulunamadı.", 429: "Discord istek sınırı aşıldı."}
-        super().__init__(f"HTTP {status}" + (f" / Discord {code}" if isinstance(code, int) else "") + ": " +
-                         hints.get(status, "Discord işlemi tamamlamadı. Kısmi değişiklik olabilir; yeniden önizleyin."))
+        message = f"HTTP {status}" + (f" / Discord {code}" if isinstance(code, int) else "") + ": " + hints.get(
+            status, "Discord işlemi tamamlamadı. Kısmi değişiklik olabilir; yeniden önizleyin.")
+        if isinstance(detail, str) and detail.strip():
+            message += f" Discord açıklaması: {detail.strip()[:240]}"
+        super().__init__(message)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -96,7 +100,7 @@ class DiscordAPI:
                 if method == "GET" and exc.code >= 500 and attempt < 2:
                     self.wait(2 ** attempt)
                     continue
-                raise ApiError(exc.code, error.get("code")) from None
+                raise ApiError(exc.code, error.get("code"), error.get("message")) from None
             except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError):
                 raise CopyError("Bağlantı kesildi veya zaman aşımı oluştu. Son isteğin sonucu belirsiz olabilir; tekrar önizleyin.") from None
             except (ValueError, UnicodeError):
@@ -157,6 +161,74 @@ def channel_payload(channel, roles, parents):
             raise CopyError("Bir kanalın üst kategorisi bulunamadı.")
         result["parent_id"] = parents[channel["parent_id"]]
     return result
+
+
+def create_channel_safely(api, target_id, channel, payload, log):
+    """Create channel securely, applying role overwrites separately after a 50013."""
+    route = f"/guilds/{target_id}/channels"
+    try:
+        created = api.request("POST", route, payload)
+        return created, payload, 0
+    except ApiError as exc:
+        if exc.status not in (400, 403) or exc.code != 50013 or not payload.get("permission_overwrites"):
+            raise CopyError(f"Kanal oluşturulamadı: {channel['name']} (tür {channel['type']}). {exc}") from None
+
+    log(f"İZİN GERİ DÖNÜŞÜ | {channel['name']}: Discord toplu izinleri reddetti; kanal güvenli şekilde oluşturulup rol izinleri ayrı uygulanacak.")
+    guard = {"id": target_id, "type": 0, "allow": "0", "deny": str(1 << 10)}
+    guarded_payload = dict(payload)
+    guarded_payload["permission_overwrites"] = [guard]
+    try:
+        created = api.request("POST", route, guarded_payload)
+    except CopyError as retry_error:
+        raise CopyError(
+            f"Kanal oluşturulamadı: {channel['name']} (tür {channel['type']}). "
+            f"Toplu izinli istek ve güvenli @everyone gizlilik denemesi başarısız: {retry_error}"
+        ) from None
+
+    applied = [guard]
+    failures = 0
+    requested = payload["permission_overwrites"]
+    everyone = next((item for item in requested if item["id"] == target_id), None)
+
+    # @everyone remains denied until all role rules have been installed.
+    for overwrite in requested:
+        if overwrite["id"] == target_id:
+            continue
+        try:
+            api.request("PUT", f"/channels/{created['id']}/permissions/{overwrite['id']}",
+                        {"type": 0, "allow": overwrite["allow"], "deny": overwrite["deny"]})
+        except ApiError as permission_error:
+            if permission_error.status in (400, 403) and permission_error.code == 50013:
+                failures += 1
+                log(f"İZİN AKTARILAMADI | Kanal: {channel['name']} · Rol ID: {overwrite['id']} · {permission_error}. @everyone gizlilik engeli korunuyor.")
+                continue
+            raise CopyError(f"Kanal izni uygulanamadı: {channel['name']} · Rol ID {overwrite['id']}. {permission_error}") from None
+        except CopyError as permission_error:
+            raise CopyError(f"Kanal izni uygulanırken bağlantı/işlem hatası: {channel['name']} · Rol ID {overwrite['id']}. {permission_error}") from None
+        applied.append(overwrite)
+
+    if failures == 0:
+        try:
+            if everyone is not None:
+                api.request("PUT", f"/channels/{created['id']}/permissions/{target_id}",
+                            {"type": 0, "allow": everyone["allow"], "deny": everyone["deny"]})
+                applied = [item for item in applied if item["id"] != target_id]
+                applied.append(everyone)
+            else:
+                api.request("DELETE", f"/channels/{created['id']}/permissions/{target_id}")
+                applied = [item for item in applied if item["id"] != target_id]
+        except ApiError as permission_error:
+            if permission_error.status not in (400, 403) or permission_error.code != 50013:
+                raise CopyError(f"@everyone kanal izni tamamlanamadı: {channel['name']}. {permission_error}") from None
+            failures += 1
+            log(f"İZİN AKTARILAMADI | Kanal: {channel['name']} · @everyone izni uygulanamadı · {permission_error}. Güvenli gizlilik engeli korunuyor.")
+
+    if failures:
+        log(f"GÜVENLİK UYARISI | {channel['name']}: Bazı rol izinleri uygulanamadı. @everyone VIEW_CHANNEL engeli kaldırılmadı.")
+
+    expected = dict(payload)
+    expected["permission_overwrites"] = applied
+    return created, expected, failures
 
 
 def preview(api, source_id, target_id):
@@ -330,11 +402,13 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         api.request("PATCH", f"/guilds/{tid}/roles", [{"id": role_map[r["id"]], "position": i} for i, r in enumerate(ordered_roles, 1)])
     step("Rol sıralaması aktarıldı.")
     channel_map, expected_channels = {}, {}
+    permission_failures = 0
     for channel in sorted(copy_channels, key=lambda c: (c["type"] != 4, c.get("position", 0), int(c["id"]))):
         payload = channel_payload(channel, role_map, channel_map)
-        result = api.request("POST", f"/guilds/{tid}/channels", payload)
+        result, expected_payload, failed_permissions = create_channel_safely(api, tid, channel, payload, log)
+        permission_failures += failed_permissions
         channel_map[channel["id"]] = result["id"]
-        expected_channels[channel["id"]] = payload
+        expected_channels[channel["id"]] = expected_payload
         step(f"Kanal oluşturuldu: {channel['name']}")
     if copy_channels:
         api.request("PATCH", f"/guilds/{tid}/channels", [{"id": channel_map[c["id"]], "position": c.get("position", 0)} for c in copy_channels])
@@ -342,5 +416,6 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
     final = verify(api, fresh, role_map, channel_map, expected_channels, failed_deletions)
     step("Son kontrol geçti: kopyalanan roller, kanallar ve izinler doğrulandı.")
     return {"backup": path, "deletion_failures": sum(len(items) for items in failed_deletions.values()),
+            "permission_failures": permission_failures,
             "remaining_roles": len({r["id"] for r in final["roles"]} & set(failed_deletions["roles"])),
             "remaining_channels": len({c["id"] for c in final["channels"]} & set(failed_deletions["channels"]))}

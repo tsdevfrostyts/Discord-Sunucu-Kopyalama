@@ -418,7 +418,7 @@ class CopierTests(unittest.TestCase):
         category_overwrites = target_channels["Genel"]["permission_overwrites"]
         self.assertTrue(any(item["id"] == TARGET and item["deny"] == "1024" for item in category_overwrites))
         self.assertTrue(any(item["id"] != TARGET and item["allow"] == "1024" for item in category_overwrites))
-        self.assertTrue(any(message.startswith("Kanal sıralaması") for message in messages))
+        self.assertTrue(any(message.startswith("Tüm kategori ve kanalların sıralaması") for message in messages))
 
     def test_failed_role_overwrite_keeps_everyone_hidden_and_other_channels_copy(self):
         original_request = self.api.request

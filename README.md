@@ -73,7 +73,7 @@ Kaynaktan açmak için:
 
 ## Doğrulama
 
-v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2'de kanal türü 20 regresyon testi eklendi. v1.0.4'te kanal izinleri 50013 geri dönüşü için iki regresyon testi daha eklendi. Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
+v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2'de kanal türü 20 regresyon testi; v1.0.3'te kanal izinleri 50013 geri dönüşü için iki test; v1.0.4'te hesaba atanmış rollerin korunması ve yetki kaybının engellenmesi için regresyon testleri eklendi. Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
 
 ## Lisans
 

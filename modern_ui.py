@@ -246,8 +246,9 @@ class ModernWindow(ctk.CTk):
             canvas.yview_moveto((canvas.canvasy(0) + delta) / max(1, self.content.winfo_height()))
 
     def update_metrics(self, plan):
-        categories = sum(c["type"] == 4 for c in plan["source"]["channels"])
-        values = (len(plan["source"]["roles"]) - 1, categories, len(plan["source"]["channels"]) - categories)
+        channels = plan.get("copy_channels", plan["source"]["channels"])
+        categories = sum(c["type"] == 4 for c in channels)
+        values = (len(plan["source"]["roles"]) - 1, categories, len(channels) - categories)
         for widget, value in zip(self.metrics, values):
             widget.configure(text=str(value))
         self.preview_caption.configure(text="Kaynak sunucudan aktarılacak yapı")

@@ -2,11 +2,11 @@
 
 Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygulaması.
 
-**[v1.0.3 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.3/Sunucu-Kopyalama_v1.0.3.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
+**[v1.0.4 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.4/Sunucu-Kopyalama_v1.0.4.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
-## v1.0.3
+## v1.0.4
 
-v1.0.3, kanal oluşturulurken Discord'un toplu izin reddine (50013) karşı güvenli geri dönüş içerir. Kanallar önce @everyone için gizli oluşturulur, rol izinleri ayrı ayrı uygulanır ve tek bir reddedilen izin diğer kanalların oluşturulmasını engellemez. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.3.md) bakın.
+v1.0.4, hedefte hesabınıza atanmış rollerin kopyalama sırasında silinmesini engeller. Böylece sunucu sahibi olmasanız da yönetici yetkisi sağlayan rolünüz korunur; kategori ve kanal oluşturma aşamasında yetki kaybı yaşanmaz. v1.0.3'teki güvenli 50013 izin geri dönüşü de korunur. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.4.md) bakın.
 
 ## Önceki sürüm: v1.0.2
 
@@ -47,7 +47,7 @@ Paketleme davranışı için: [PyInstaller'ın tek dosya çalışma açıklamas�
 1. EXE dosyasını açın. Python kurulumu gerekmez.
 2. Kendi hesabınızın kullanıcı token’ini ve kaynak/hedef sunucu ID’lerini girin.
 3. Önizlemeyi inceleyip kopyalamayı başlatın. Hedef sunucunun sahibi veya Yönetici yetkili olmalısınız; kaynak yapıya erişiminiz bulunmalıdır.
-4. İlerlemeyi işlem günlüğünden takip edin. Silinemeyen roller/kanallar isim ve ID ile kırmızı gösterilir; işlem devam eder.
+4. İlerlemeyi işlem günlüğünden takip edin. Hesabınıza atanmış roller yetki kaybı yaşanmaması için korunur; silinemeyen diğer roller/kanallar isim ve ID ile gösterilir.
 
 **Kopyalama hedefte mevcut rol ve kanalları silmeye çalışır. Kanal silinmesi içindeki mesajları da kaybettirebilir. İkinci onay penceresi yoktur; hedef ID’sini önizlemede kontrol edin.** Yerel yedek yalnızca yapı kaydıdır; otomatik geri yükleme ve mesaj kurtarma sağlamaz. İptal/hata tamamlanmış işlemleri geri almaz.
 
@@ -63,7 +63,7 @@ Windows 10/11 x64, Python 3.14 ve PowerShell ile:
 .\build.ps1
 ```
 
-Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.3.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
+Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.4.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
 
 Kaynaktan açmak için:
 
@@ -73,7 +73,7 @@ Kaynaktan açmak için:
 
 ## Doğrulama
 
-v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2'de kanal türü 20 regresyon testi eklendi. v1.0.3'te kanal izinleri 50013 geri dönüşü için iki regresyon testi daha eklendi. Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
+v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2'de kanal türü 20 regresyon testi eklendi. v1.0.4'te kanal izinleri 50013 geri dönüşü için iki regresyon testi daha eklendi. Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
 
 ## Lisans
 

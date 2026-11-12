@@ -94,6 +94,24 @@ class MemoryAPI:
         if method == "GET" and path == "/users/@me":
             return self.user
         parts = path.strip("/").split("/")
+        if parts[0] == "channels" and len(parts) == 4 and method in ("PUT", "DELETE"):
+            channel_id, overwrite_id = parts[1], parts[3]
+            for state in self.states.values():
+                channel = next((item for item in state["channels"] if item["id"] == channel_id), None)
+                if channel is None:
+                    continue
+                overwrites = channel.setdefault("permission_overwrites", [])
+                if method == "PUT":
+                    replacement = {"id": overwrite_id, **copy.deepcopy(data)}
+                    existing = next((item for item in overwrites if item["id"] == overwrite_id), None)
+                    if existing is None:
+                        overwrites.append(replacement)
+                    else:
+                        existing.update(replacement)
+                else:
+                    channel["permission_overwrites"] = [item for item in overwrites if item["id"] != overwrite_id]
+                return None
+            raise ApiError(404)
         if parts[0] == "channels" and method == "DELETE":
             for state in self.states.values():
                 for channel in state["channels"]:
@@ -298,6 +316,50 @@ class CopierTests(unittest.TestCase):
         self.assertTrue(any(role_item["id"] == MANAGED_ROLE for role_item in self.api.states[TARGET]["roles"]))
         self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-kanal") for message in messages))
         self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-alt-kanal") for message in messages))
+
+    def test_channel_create_50013_retries_with_guarded_overwrites_and_continues(self):
+        original_request = self.api.request
+        rejected = []
+
+        def reject_bulk_overwrites(method, path, data=None):
+            if method == "POST" and path == f"/guilds/{TARGET}/channels" and len(data.get("permission_overwrites", [])) > 1:
+                rejected.append(path)
+                raise ApiError(400, 50013, "Missing Permissions")
+            return original_request(method, path, data)
+
+        self.api.request = reject_bulk_overwrites
+        messages = []
+        result = execute(self.api, self.plan(), self.directory, log=messages.append)
+
+        self.assertGreaterEqual(len(rejected), 2)
+        self.assertEqual(result["permission_failures"], 0)
+        target_channels = {channel["name"]: channel for channel in self.api.states[TARGET]["channels"]}
+        self.assertTrue({"Genel", "sohbet", "Ses"} <= set(target_channels))
+        category_overwrites = target_channels["Genel"]["permission_overwrites"]
+        self.assertTrue(any(item["id"] == TARGET and item["deny"] == "1024" for item in category_overwrites))
+        self.assertTrue(any(item["id"] != TARGET and item["allow"] == "1024" for item in category_overwrites))
+        self.assertTrue(any(message.startswith("İZİN GERİ DÖNÜŞÜ | Genel") for message in messages))
+
+    def test_failed_role_overwrite_keeps_everyone_hidden_and_other_channels_copy(self):
+        original_request = self.api.request
+
+        def reject_one_role_overwrite(method, path, data=None):
+            if method == "POST" and path == f"/guilds/{TARGET}/channels" and len(data.get("permission_overwrites", [])) > 1:
+                raise ApiError(400, 50013, "Missing Permissions")
+            if method == "PUT" and path.endswith(f"/permissions/{SOURCE_ROLE}"):
+                raise ApiError(403, 50013, "Missing Permissions")
+            return original_request(method, path, data)
+
+        self.api.request = reject_one_role_overwrite
+        messages = []
+        result = execute(self.api, self.plan(), self.directory, log=messages.append)
+
+        self.assertGreater(result["permission_failures"], 0)
+        target_channels = {channel["name"]: channel for channel in self.api.states[TARGET]["channels"]}
+        self.assertTrue({"Genel", "sohbet", "Ses"} <= set(target_channels))
+        self.assertTrue(any(item["id"] == TARGET and item["deny"] == "1024" for item in target_channels["Genel"]["permission_overwrites"]))
+        self.assertTrue(any(message.startswith("İZİN AKTARILAMADI | Kanal: Genel") for message in messages))
+        self.assertTrue(any(message.startswith("GÜVENLİK UYARISI | Genel") for message in messages))
 
     def test_forum_voice_and_converted_special_channels_copy_without_extra_settings(self):
         for original_kind, expected_kind in ((0, 0), (2, 2), (5, 0), (13, 2), (15, 15), (16, 0)):

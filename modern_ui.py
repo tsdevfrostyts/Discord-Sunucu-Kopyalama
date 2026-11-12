@@ -95,6 +95,7 @@ class ModernWindow(ctk.CTk):
         return field
 
     def build_ui(self, demo):
+        is_bot = getattr(self, "auth_mode", "user") == "bot"
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
         sidebar = ctk.CTkFrame(self, width=210, fg_color=COLORS["sidebar"], corner_radius=0)
@@ -144,9 +145,14 @@ class ModernWindow(ctk.CTk):
         connection.grid(row=0, column=0, sticky="nsew", padx=(0, 16), pady=(0, 16))
         connection.grid_columnconfigure(0, weight=1)
         self.label(connection, "01  Bağlantıyı hazırla", size=17, bold=True).grid(sticky="w", padx=22, pady=(18, 0))
-        self.label(connection, "Hesabını ve aktarım yönünü belirle.", color="muted", size=12).grid(sticky="w", padx=22, pady=(0, 14))
-        self.label(connection, "Hesabının token’i", size=12, bold=True).grid(sticky="w", padx=22)
-        self.token_entry = self.entry(connection, self.token, "Kullanıcı token’ini gir", show="•")
+        self.label(connection, "Botunu ve aktarım yönünü belirle." if is_bot else "Hesabını ve aktarım yönünü belirle.",
+                   color="muted", size=12).grid(sticky="w", padx=22, pady=(0, 14))
+        self.label(connection, "Bot token’i" if is_bot else "Hesabının token’i", size=12, bold=True).grid(sticky="w", padx=22)
+        self.token_entry = self.entry(
+            connection, self.token,
+            "Bot token’ini gir (Bot ön eki isteğe bağlı)" if is_bot else "Kullanıcı token’ini gir",
+            show="•"
+        )
         self.token_entry.grid(sticky="ew", padx=22, pady=(5, 6))
         self.show_token = tk.BooleanVar()
         ctk.CTkCheckBox(connection, text="Token’i göster", variable=self.show_token, command=lambda: self.token_entry.configure(show="" if self.show_token.get() else "•"),
@@ -161,7 +167,12 @@ class ModernWindow(ctk.CTk):
             field = self.entry(servers, var, placeholder)
             field.grid(row=1, column=col, sticky="ew", padx=(0 if col == 0 else 12, 0), pady=(5, 0))
             self.fields.append(field)
-        self.label(connection, "Token dosyaya kaydedilmez. Hedefte yönetici yetkisi gerekir.", size=11, color="muted", wraplength=450).grid(sticky="w", padx=22, pady=(10, 14))
+        connection_hint = (
+            "Botu önce hem kaynak hem hedef sunucuya ekle. Hedefte Administrator yetkisi olan bir bot rolü gerekir."
+            if is_bot else
+            "Token dosyaya kaydedilmez. Hedefte yönetici yetkisi gerekir."
+        )
+        self.label(connection, connection_hint, size=11, color="muted", wraplength=450).grid(sticky="w", padx=22, pady=(10, 14))
         self.preview_button = self.button(connection, "Sunucuları incele  →", self.inspect, "primary")
         self.preview_button.grid(sticky="ew", padx=22, pady=(0, 20))
 
@@ -214,7 +225,12 @@ class ModernWindow(ctk.CTk):
                                       font=("Consolas", 12), corner_radius=10, wrap="word", state="disabled")
         self.log_view.grid(row=3, column=0, columnspan=2, sticky="ew", padx=22, pady=(10, 18))
         self.log_view.tag_config("error", foreground="#ff6b7d")
-        self.label(self.content, "Kullanıcı token’iyle otomasyon Discord kurallarına aykırı olabilir ve hesap kısıtlaması riski taşır.", size=11, color="warning", wraplength=820).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(0, 8))
+        footer_notice = (
+            "Botun kaynak sunucuda kanalları görüntüleyebilmesi, hedef sunucuda Administrator yetkisi olması gerekir. Bot token’ini kimseyle paylaşma."
+            if is_bot else
+            "Kullanıcı token’iyle otomasyon Discord kurallarına aykırı olabilir ve hesap kısıtlaması riski taşır."
+        )
+        self.label(self.content, footer_notice, size=11, color="warning", wraplength=820).grid(row=3, column=0, columnspan=2, sticky="w", padx=4, pady=(0, 8))
         self.show_stage(0)
         self.bind_all("<FocusIn>", self.ensure_focus_visible, add="+")
         self.after(30, self.reveal)

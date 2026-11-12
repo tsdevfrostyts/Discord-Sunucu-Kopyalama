@@ -21,16 +21,13 @@ class Cancelled(CopyError):
 
 
 class ApiError(CopyError):
-    def __init__(self, status, code=None, detail=None):
+    def __init__(self, status, code=None):
         self.status = status
         self.code = code
         hints = {401: "Token geçersiz veya süresi dolmuş.", 403: "Discord işlemi reddetti; yetkileri veya hesap doğrulamasını kontrol edin.",
                  404: "Sunucu, kanal veya üye bulunamadı.", 429: "Discord istek sınırı aşıldı."}
-        message = f"HTTP {status}" + (f" / Discord {code}" if isinstance(code, int) else "") + ": " + hints.get(
-            status, "Discord işlemi tamamlamadı. Kısmi değişiklik olabilir; yeniden önizleyin.")
-        if isinstance(detail, str) and detail.strip():
-            message += f" Discord açıklaması: {detail.strip()[:240]}"
-        super().__init__(message)
+        super().__init__(f"HTTP {status}" + (f" / Discord {code}" if isinstance(code, int) else "") + ": " +
+                         hints.get(status, "Discord işlemi tamamlamadı. Kısmi değişiklik olabilir; yeniden önizleyin."))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -100,10 +97,7 @@ class DiscordAPI:
                 if method == "GET" and exc.code >= 500 and attempt < 2:
                     self.wait(2 ** attempt)
                     continue
-                detail = error.get("message")
-                if isinstance(detail, str):
-                    detail = detail.replace(self._token, "[gizlendi]")
-                raise ApiError(exc.code, error.get("code"), detail) from None
+                raise ApiError(exc.code, error.get("code")) from None
             except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError):
                 raise CopyError("Bağlantı kesildi veya zaman aşımı oluştu. Son isteğin sonucu belirsiz olabilir; tekrar önizleyin.") from None
             except (ValueError, UnicodeError):

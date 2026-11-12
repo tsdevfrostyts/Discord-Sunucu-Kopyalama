@@ -100,7 +100,10 @@ class DiscordAPI:
                 if method == "GET" and exc.code >= 500 and attempt < 2:
                     self.wait(2 ** attempt)
                     continue
-                raise ApiError(exc.code, error.get("code"), error.get("message")) from None
+                detail = error.get("message")
+                if isinstance(detail, str):
+                    detail = detail.replace(self._token, "[gizlendi]")
+                raise ApiError(exc.code, error.get("code"), detail) from None
             except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError):
                 raise CopyError("Bağlantı kesildi veya zaman aşımı oluştu. Son isteğin sonucu belirsiz olabilir; tekrar önizleyin.") from None
             except (ValueError, UnicodeError):

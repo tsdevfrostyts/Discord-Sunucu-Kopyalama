@@ -2,11 +2,15 @@
 
 Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygulaması.
 
-**[v1.0.2 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.2/Sunucu-Kopyalama_v1.0.2.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
+**[v1.0.3 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.3/Sunucu-Kopyalama_v1.0.3.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
-## v1.0.2
+## v1.0.3
 
-v1.0.2 yayımlandı. Windows derlemesi, 44 otomatik test, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi başarıyla tamamlandı. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.2.md) bakın.
+v1.0.3, kanal oluşturulurken Discord'un toplu izin reddine (50013) karşı güvenli geri dönüş içerir. Kanallar önce @everyone için gizli oluşturulur, rol izinleri ayrı ayrı uygulanır ve tek bir reddedilen izin diğer kanalların oluşturulmasını engellemez. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.3.md) bakın.
+
+## Önceki sürüm: v1.0.2
+
+Tür 20 kanal türü ve bağlı alt kanallar desteklenmeyen olarak atlanır. Ayrıntılar için [v1.0.2 sürüm notlarına](RELEASE_NOTES_v1.0.2.md) bakın.
 
 ## Gizlilik
 
@@ -59,7 +63,7 @@ Windows 10/11 x64, Python 3.14 ve PowerShell ile:
 .\build.ps1
 ```
 
-Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.2.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
+Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.3.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
 
 Kaynaktan açmak için:
 
@@ -69,10 +73,10 @@ Kaynaktan açmak için:
 
 ## Doğrulama
 
-v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2 test paketi bir yeni kanal türü 20 regresyon testi içerir; Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
+v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmiş EXE arayüz öz denetimi geçti. v1.0.2'de kanal türü 20 regresyon testi eklendi. v1.0.3'te kanal izinleri 50013 geri dönüşü için iki regresyon testi daha eklendi. Windows release iş akışı testler, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi geçmeden sürümü yayımlamaz. Ağ testleri taklit yanıtlarla çalışır. Önceki çalışan çekirdeğin gerçek kopyalama işlemini kullanıcı doğruladı; bu sürümdeki görsel değişiklikler sonrasında tüm canlı Discord senaryoları ayrıca denenmedi.
 
 ## Lisans
 
 [MIT](LICENSE). CustomTkinter arayüzü/simgesi ve diğer bileşenlerin lisansları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasındadır. Discord ile bağlantılı veya Discord tarafından onaylanmış bir ürün değildir.
 
-Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.2.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.
+Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.3.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.

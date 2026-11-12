@@ -168,7 +168,7 @@ class ModernWindow(ctk.CTk):
             field.grid(row=1, column=col, sticky="ew", padx=(0 if col == 0 else 12, 0), pady=(5, 0))
             self.fields.append(field)
         connection_hint = (
-            "Botu önce hem kaynak hem hedef sunucuya ekle. Hedefte Administrator yetkisi olan bir bot rolü gerekir."
+            "Botu hem kaynak hem hedef sunucuya ekle. Kaynakta bütün kanallara View Channel erişimi, hedefte Administrator yetkisi ve yönetilecek rollerin üstünde bir bot rolü gerekir."
             if is_bot else
             "Token dosyaya kaydedilmez. Hedefte yönetici yetkisi gerekir."
         )
@@ -226,7 +226,7 @@ class ModernWindow(ctk.CTk):
         self.log_view.grid(row=3, column=0, columnspan=2, sticky="ew", padx=22, pady=(10, 18))
         self.log_view.tag_config("error", foreground="#ff6b7d")
         footer_notice = (
-            "Botun kaynak sunucuda kanalları görüntüleyebilmesi, hedef sunucuda Administrator yetkisi olması gerekir. Bot token’ini kimseyle paylaşma."
+            "Bot kaynak sunucudaki tüm kanalları görebilmeli; hedefte Administrator yetkisi ve hedef rollerin üstünde bir bot rolü bulunmalı. Bot token’ini kimseyle paylaşma."
             if is_bot else
             "Kullanıcı token’iyle otomasyon Discord kurallarına aykırı olabilir ve hesap kısıtlaması riski taşır."
         )

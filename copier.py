@@ -69,7 +69,7 @@ class DiscordAPI:
             raise CopyError("Geçersiz API yolu.")
         resource_mutation = method == "POST" or (method == "DELETE" and "/permissions/" not in path)
         for attempt in range(8):
-            if resource_mutation:
+            if resource_mutation and self.next_mutation_request:
                 self.wait(max(0, self.next_mutation_request - time.monotonic()))
             body = None if data is None else json.dumps(data, ensure_ascii=False).encode("utf-8")
             req = urllib.request.Request("https://discord.com/api/v10" + path, data=body, method=method,

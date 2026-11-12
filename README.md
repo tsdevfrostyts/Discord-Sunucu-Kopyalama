@@ -2,11 +2,15 @@
 
 Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygulaması.
 
-**[v1.0.4 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.4/Sunucu-Kopyalama_v1.0.4.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
+**[v1.0.5 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.5/Sunucu-Kopyalama_v1.0.5.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
-## v1.0.4
+## v1.0.5
 
-v1.0.4, hedefte hesabınıza atanmış rollerin kopyalama sırasında silinmesini engeller. Böylece sunucu sahibi olmasanız da yönetici yetkisi sağlayan rolünüz korunur; kategori ve kanal oluşturma aşamasında yetki kaybı yaşanmaz. v1.0.3'teki güvenli 50013 izin geri dönüşü de korunur. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.4.md) bakın.
+v1.0.5, başarılı Discord yanıtlarındaki `X-RateLimit-Reset-After` değerinin tüm API isteklerine uygulanıp uzun bekleme oluşturmasını engeller. Gerçek `429` yanıtlarında otomatik uzun bekleme/tekrar deneme yerine işlem durdurulur ve Discord'un bildirdiği süre gösterilir. Rol/kanal/kategori oluşturma ve silme istekleri arasında 1,5 saniye bırakılır. Kanal ve kategoriler önce izinler eklenmeden oluşturulur, topluca sıralanır ve rol izinleri son aşamada uygulanır. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.5.md) bakın.
+
+## Önceki sürüm: v1.0.4
+
+Hedefte hesaba atanmış rollerin silinmesi engellenir; böylece yönetici yetkisi sağlayan rol korunur. Ayrıntılar için [v1.0.4 sürüm notlarına](RELEASE_NOTES_v1.0.4.md) bakın.
 
 ## Önceki sürüm: v1.0.2
 
@@ -63,7 +67,7 @@ Windows 10/11 x64, Python 3.14 ve PowerShell ile:
 .\build.ps1
 ```
 
-Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.4.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
+Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.5.exe` üretir ve paketlenmiş arayüzün öz denetimini çalıştırır. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
 
 Kaynaktan açmak için:
 
@@ -79,4 +83,4 @@ v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmi�
 
 [MIT](LICENSE). CustomTkinter arayüzü/simgesi ve diğer bileşenlerin lisansları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasındadır. Discord ile bağlantılı veya Discord tarafından onaylanmış bir ürün değildir.
 
-Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.3.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.
+Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.5.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.

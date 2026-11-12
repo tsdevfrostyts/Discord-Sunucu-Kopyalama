@@ -151,11 +151,11 @@ class App(ModernWindow):
                     self.status.set("Tamamlandı · Son yapı ve izin kontrolü geçti")
                     self.append_log(f"Kopyalama tamamlandı. Yapı yedeği: {value['backup']}")
                     self.clear_token()
-                    if value["deletion_failures"] or value["permission_failures"]:
+                    if value["deletion_failures"] or value.get("permission_failures", 0):
                         self.status.set("Aktarım tamamlandı · Silme veya kanal izinleriyle ilgili uyarılar var")
                         if value["deletion_failures"]:
                             self.append_log(f"Uyarı: {value['deletion_failures']} silme adımı başarısız oldu. Hedefte {value['remaining_roles']} eski rol ve {value['remaining_channels']} eski kanal kaldı.", error=True)
-                        if value["permission_failures"]:
+                        if value.get("permission_failures", 0):
                             self.append_log(f"Uyarı: {value['permission_failures']} kanal rol izni uygulanamadı. Güvenlik için ilgili kanallarda @everyone VIEW_CHANNEL engeli korunmuş olabilir.", error=True)
                         self.show_stage(2, "Uyarılı bitti")
                     else:

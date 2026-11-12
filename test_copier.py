@@ -346,7 +346,7 @@ class CopierTests(unittest.TestCase):
         def reject_one_role_overwrite(method, path, data=None):
             if method == "POST" and path == f"/guilds/{TARGET}/channels" and len(data.get("permission_overwrites", [])) > 1:
                 raise ApiError(400, 50013, "Missing Permissions")
-            if method == "PUT" and path.endswith(f"/permissions/{SOURCE_ROLE}"):
+            if method == "PUT" and path.startswith("/channels/") and "/permissions/" in path and not path.endswith(f"/permissions/{TARGET}"):
                 raise ApiError(403, 50013, "Missing Permissions")
             return original_request(method, path, data)
 

@@ -2,11 +2,11 @@
 
 Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygulaması.
 
-**[v1.0.1 EXE indir](https://github.com/tsdevfrostyts/Sunucu-Kopyalama/releases/download/v1.0.1/Sunucu-Kopyalama_v1.0.1.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Sunucu-Kopyalama/releases)
+**[v1.0.2 EXE indir](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.2/Sunucu-Kopyalama_v1.0.2.exe)** · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
 ## v1.0.2
 
-v1.0.2 kaynak kodu ve Windows paketleme ayarları hazırlandı. EXE ve GitHub Release, **Actions → Publish Windows release → Run workflow** adımından Windows derlemesi ve testler başarılı olduktan sonra yayımlanabilir. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.2.md) bakın.
+v1.0.2 yayımlandı. Windows derlemesi, 44 otomatik test, EXE sürüm bilgileri ve paketlenmiş arayüz öz denetimi başarıyla tamamlandı. Ayrıntılar için [sürüm notlarına](RELEASE_NOTES_v1.0.2.md) bakın.
 
 ## Gizlilik
 

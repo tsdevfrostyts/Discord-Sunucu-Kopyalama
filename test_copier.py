@@ -383,28 +383,42 @@ class CopierTests(unittest.TestCase):
         self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-kanal") for message in messages))
         self.assertTrue(any(message.startswith("KOPYALANMADI | Kanal: özel-alt-kanal") for message in messages))
 
-    def test_channel_create_50013_retries_with_guarded_overwrites_and_continues(self):
-        original_request = self.api.request
-        rejected = []
-
-        def reject_bulk_overwrites(method, path, data=None):
-            if method == "POST" and path == f"/guilds/{TARGET}/channels" and len(data.get("permission_overwrites", [])) > 1:
-                rejected.append(path)
-                raise ApiError(400, 50013)
-            return original_request(method, path, data)
-
-        self.api.request = reject_bulk_overwrites
+    def test_channels_are_created_without_overwrites_then_sorted_then_permissions_applied(self):
         messages = []
         result = execute(self.api, self.plan(), self.directory, log=messages.append)
 
-        self.assertGreaterEqual(len(rejected), 2)
         self.assertEqual(result["permission_failures"], 0)
+        channel_writes = [
+            (index, method, path, payload)
+            for index, (method, path, payload) in enumerate(self.api.writes)
+        ]
+        create_indexes = [
+            index for index, method, path, _ in channel_writes
+            if method == "POST" and path == f"/guilds/{TARGET}/channels"
+        ]
+        sort_indexes = [
+            index for index, method, path, _ in channel_writes
+            if method == "PATCH" and path == f"/guilds/{TARGET}/channels"
+        ]
+        permission_indexes = [
+            index for index, method, path, _ in channel_writes
+            if method == "PUT" and path.startswith("/channels/") and "/permissions/" in path
+        ]
+        self.assertEqual(len(create_indexes), 3)
+        self.assertTrue(sort_indexes)
+        self.assertTrue(permission_indexes)
+        self.assertLess(max(create_indexes), sort_indexes[0])
+        self.assertLess(sort_indexes[0], min(permission_indexes))
+        for _, method, path, payload in channel_writes:
+            if method == "POST" and path == f"/guilds/{TARGET}/channels":
+                self.assertNotIn("permission_overwrites", payload)
+
         target_channels = {channel["name"]: channel for channel in self.api.states[TARGET]["channels"]}
         self.assertTrue({"Genel", "sohbet", "Ses"} <= set(target_channels))
         category_overwrites = target_channels["Genel"]["permission_overwrites"]
         self.assertTrue(any(item["id"] == TARGET and item["deny"] == "1024" for item in category_overwrites))
         self.assertTrue(any(item["id"] != TARGET and item["allow"] == "1024" for item in category_overwrites))
-        self.assertTrue(any(message.startswith("İZİN GERİ DÖNÜŞÜ | Genel") for message in messages))
+        self.assertTrue(any(message.startswith("Kanal sıralaması") for message in messages))
 
     def test_failed_role_overwrite_keeps_everyone_hidden_and_other_channels_copy(self):
         original_request = self.api.request
@@ -439,9 +453,10 @@ class CopierTests(unittest.TestCase):
                 copied = next(c for c in api.states[TARGET]["channels"] if c["name"] == "sohbet")
                 self.assertEqual(copied["type"], expected_kind)
                 sent = next(payload for method, path, payload in api.writes if method == "POST" and path.endswith("/channels") and payload["name"] == "sohbet")
-                self.assertEqual(set(sent), {"name", "type", "parent_id", "permission_overwrites"})
-                self.assertTrue(all(o["type"] == 0 for o in sent["permission_overwrites"]))
+                self.assertEqual(set(sent), {"name", "type", "parent_id"})
                 self.assertFalse(any(method == "PATCH" and path == f"/guilds/{TARGET}" for method, path, _ in api.writes))
+                self.assertTrue(any(method == "PUT" and path.startswith("/channels/") and "/permissions/" in path
+                                    for method, path, _ in api.writes))
 
     def test_source_destination_or_account_change_invalidates_preview(self):
         for change in ("source", "target", "account"):
@@ -663,21 +678,49 @@ class TransportTests(unittest.TestCase):
                 with self.subTest(destination=destination, status=status):
                     self.assertIsNone(handler.redirect_request(None, None, status, "redirect", {}, destination))
 
-    def test_rate_limit_429_is_honored_before_retry(self):
+    def test_429_stops_without_automatic_long_wait_or_retry(self):
         error = urllib.error.HTTPError("https://discord.com/api/v10/users/@me", 429, "limited", {},
-                                       io.BytesIO(json.dumps({"retry_after": 2.5}).encode()))
+                                       io.BytesIO(json.dumps({"retry_after": 198.9, "global": False}).encode()))
         self.api.opener = Opener(error, Response({"id": OWNER}))
-        self.assertEqual(self.api.request("GET", "/users/@me"), {"id": OWNER})
-        self.assertEqual(len(self.api.opener.calls), 2)
-        self.assertIn(2.6, self.waits)
+        with self.assertRaises(ApiError) as raised:
+            self.api.request("GET", "/users/@me")
+        self.assertEqual(raised.exception.status, 429)
+        self.assertEqual(raised.exception.retry_after, 198.9)
+        self.assertIn("198.9 saniye", str(raised.exception))
+        self.assertEqual(len(self.api.opener.calls), 1)
+        self.assertEqual(self.waits, [])
         self.assertEqual(len(self.logs), 1)
 
-    def test_rate_limit_reset_header_defers_next_request(self):
-        self.api.opener = Opener(Response({}, {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset-After": "9"}), Response({}))
+    def test_reset_after_header_does_not_globally_pause_unrelated_requests(self):
+        self.api.opener = Opener(
+            Response({}, {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset-After": "198.9"}),
+            Response({})
+        )
         with patch("copier.time.monotonic", return_value=100):
             self.api.request("GET", "/users/@me")
             self.api.request("GET", "/users/@me")
-        self.assertEqual(self.waits, [0, 9])
+        self.assertEqual(len(self.api.opener.calls), 2)
+        self.assertEqual(self.waits, [])
+
+    def test_resource_additions_and_deletions_are_spaced_by_1_5_seconds(self):
+        clock = [100.0]
+
+        def monotonic():
+            return clock[0]
+
+        def wait(seconds):
+            self.waits.append(seconds)
+            clock[0] += seconds
+
+        self.api.wait = wait
+        self.api.opener = Opener(Response({}), Response({}), Response({}), Response({}))
+        with patch("copier.time.monotonic", side_effect=monotonic):
+            self.api.request("POST", f"/guilds/{TARGET}/roles", {"name": "Ekip"})
+            self.api.request("DELETE", f"/guilds/{TARGET}/roles/{TARGET_ROLE}")
+            self.api.request("POST", f"/guilds/{TARGET}/channels", {"name": "sohbet", "type": 0})
+            self.api.request("DELETE", f"/channels/{OLD_CHANNEL}/permissions/{TARGET}")
+        self.assertEqual(self.waits, [1.5, 1.5])
+        self.assertEqual(len(self.api.opener.calls), 4)
 
     def test_ambiguous_mutation_timeout_is_never_retried(self):
         self.api.opener = Opener(TimeoutError("synthetic-test-secret"), Response({"id": "should-not-exist"}))

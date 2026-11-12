@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app import App
+from app import App, detect_auth_mode
 from modern_ui import COLORS
 from copier import preview
 from test_copier import MemoryAPI, SOURCE, TARGET
@@ -26,6 +26,11 @@ class ModernUITests(unittest.TestCase):
         self.app.busy = False
         self.app.plan = None
         self.app.demo = True
+
+    def test_build_filename_selects_the_correct_authentication_mode(self):
+        self.assertEqual(detect_auth_mode(argv=[], executable="Sunucu-Kopyalama_v1.0.6_Kullanıcı.exe"), "user")
+        self.assertEqual(detect_auth_mode(argv=[], executable="Sunucu-Kopyalama_v1.0.6_Bot.exe"), "bot")
+        self.assertEqual(detect_auth_mode(argv=["app.py", "--bot-mode"], executable="app.py"), "bot")
 
     def test_preview_unlocks_copy_without_second_confirmation_and_edits_relock(self):
         app = self.app

@@ -38,8 +38,8 @@ foreach ($variant in $variants) {
 
     $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
     if ($info.ProductName -ne 'Sunucu Kopyalama' -or
-        $info.FileVersion -ne '1.0.6.0' -or
-        $info.ProductVersion -ne '1.0.6.0' -or
+        $info.FileVersion -ne '1.0.7.0' -or
+        $info.ProductVersion -ne '1.0.7.0' -or
         $info.OriginalFilename -ne $exeName -or
         $info.FileDescription -ne $variant.Description -or
         $info.CompanyName -ne 'DevFrosty' -or

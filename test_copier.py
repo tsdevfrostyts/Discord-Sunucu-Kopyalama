@@ -23,6 +23,7 @@ SOURCE_VOICE = "111111111111111123"
 TARGET_ROLE = "222222222222222223"
 MANAGED_ROLE = "222222222222222224"
 HIGH_ROLE = "222222222222222225"
+ANOTHER_HIGH_ROLE = "222222222222222226"
 OLD_CATEGORY = "222222222222222231"
 OLD_CHANNEL = "222222222222222232"
 
@@ -287,14 +288,55 @@ class CopierTests(unittest.TestCase):
                              for method, path, _ in api.writes))
         self.assertEqual(result["permission_failures"], 0)
 
-    def test_bot_mode_refuses_when_its_highest_role_is_below_target_roles(self):
+    def test_bot_mode_preserves_all_roles_above_its_hierarchy_and_continues_copy(self):
         self.api.auth_mode = "bot"
         self.api.user = {"id": BOT_ID, "bot": True}
         self.api.member_roles = {BOT_ID: [TARGET_ROLE]}
         self.api.states[TARGET]["guild"]["owner_id"] = OWNER
         admin_role = next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)
         admin_role.update(permissions="8", position=1)
-        with self.assertRaisesRegex(CopyError, "en üst rolün"):
+        self.api.states[TARGET]["roles"].extend([
+            role(HIGH_ROLE, "🔑", 8, "123"),
+            role(ANOTHER_HIGH_ROLE, "Dokunulmaz Rol", 9, "456"),
+        ])
+        original_protected = {
+            item["id"]: copy.deepcopy(item)
+            for item in self.api.states[TARGET]["roles"]
+            if item["id"] in {HIGH_ROLE, ANOTHER_HIGH_ROLE}
+        }
+
+        plan = self.plan()
+        self.assertEqual(set(plan["unmanageable_role_ids"]), {HIGH_ROLE, ANOTHER_HIGH_ROLE})
+        warning = "\\n".join(plan["warnings"])
+        self.assertIn("2 hedef rol değiştirilmeyecek ve silinmeyecek", warning)
+        self.assertIn("🔑", warning)
+        self.assertIn("Dokunulmaz Rol", warning)
+
+        messages = []
+        result = execute(self.api, plan, self.directory, log=messages.append)
+        final_roles = {item["id"]: item for item in self.api.states[TARGET]["roles"]}
+        for role_id, original in original_protected.items():
+            self.assertIn(role_id, final_roles)
+            for key in ("name", "permissions", "color", "position", "hoist", "mentionable", "managed"):
+                self.assertEqual(final_roles[role_id].get(key), original.get(key), (role_id, key))
+            self.assertFalse(any(method == "DELETE" and path.endswith("/" + role_id)
+                                 for method, path, _ in self.api.writes))
+            self.assertTrue(any(message.startswith(f"KORUNDU | Rol: {original['name']}")
+                                for message in messages))
+
+        self.assertFalse(any(method == "PATCH" and path == f"/guilds/{TARGET}/roles"
+                             for method, path, _ in self.api.writes))
+        self.assertTrue(any(role["name"] == "Ekip" for role in final_roles.values()))
+        self.assertTrue(any(channel["name"] == "sohbet" for channel in self.api.states[TARGET]["channels"]))
+        self.assertEqual(result["permission_failures"], 0)
+
+    def test_user_mode_keeps_existing_hierarchy_refusal(self):
+        self.api.states[TARGET]["guild"]["owner_id"] = OWNER
+        self.api.member_roles[OWNER] = [TARGET_ROLE]
+        admin_role = next(r for r in self.api.states[TARGET]["roles"] if r["id"] == TARGET_ROLE)
+        admin_role.update(permissions="8", position=1)
+        self.api.states[TARGET]["roles"].append(role(HIGH_ROLE, "Yuksek Rol", 8))
+        with self.assertRaisesRegex(CopyError, "En üst rolün"):
             self.plan()
         self.assert_no_writes()
 

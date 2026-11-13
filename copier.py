@@ -293,10 +293,9 @@ def preview(api, source_id, target_id):
             f"üzerinde değil: {role_names}. Aktarımdan önce hesabın en üst rolünü bu rollerin üstüne "
             "taşıyın. Hiçbir şey silinmedi."
         )
-    # A bot never reorders roles. It creates the source roles at Discord's default
-    # safe position, and leaves every role outside its hierarchy completely alone.
-    # The same fallback is used when the bot has too few hierarchy levels to
-    # reproduce the source ordering exactly.
+    # When a bot cannot safely reproduce the requested role order within its
+    # hierarchy, leave new roles at Discord's default position. This avoids a
+    # bulk role-position request that could touch or outrank preserved roles.
     roles_to_create = len(source["roles"]) - 1
     skip_role_reorder = bool(
         auth_mode == "bot" and
@@ -333,8 +332,8 @@ def preview(api, source_id, target_id):
         )
     if role_order_warning:
         warnings.add(
-            "Bot rol hiyerarşisinin dışındaki rollere dokunmamak için yeni rollerin sıralaması "
-            "Discord'un varsayılanında bırakılacak; mevcut hedef rollerin sırası değiştirilmeyecek."
+            "Botun rol hiyerarşisi güvenli sıralamaya yetmediği için yeni roller Discord'un "
+            "varsayılanında bırakılacak; mevcut hedef rollerin sırası değiştirilmeyecek."
         )
     if any(r.get("managed") for r in source["roles"]):
         warnings.add("Kaynak entegrasyon rolleri normal rol olarak oluşturulur; bot bağlantıları aktarılmaz.")

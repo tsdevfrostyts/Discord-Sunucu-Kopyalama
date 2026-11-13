@@ -2,17 +2,21 @@
 
 Windows için açık kaynak, animasyonlu Discord sunucu yapısı kopyalama uygulaması.
 
-**Kullanıcı sürümü:** [Sunucu-Kopyalama_v1.0.6_Kullanici.exe](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.6/Sunucu-Kopyalama_v1.0.6_Kullanici.exe)
+**Kullanıcı sürümü:** [Sunucu-Kopyalama_v1.0.7_Kullanici.exe](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.7/Sunucu-Kopyalama_v1.0.7_Kullanici.exe)
 
 GitHub Release indirme adında Türkçe noktasız `ı` karakterini `i` olarak normalize etti; indirilen dosya adı `_Kullanici.exe` olur. Yerel derleme çıktısının adı `_Kullanıcı.exe` olarak korunur.
 
-**Bot sürümü:** [Sunucu-Kopyalama_v1.0.6_Bot.exe](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.6/Sunucu-Kopyalama_v1.0.6_Bot.exe) · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
+**Bot sürümü:** [Sunucu-Kopyalama_v1.0.7_Bot.exe](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases/download/v1.0.7/Sunucu-Kopyalama_v1.0.7_Bot.exe) · [Tüm sürümler](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
-## v1.0.6
+## v1.0.7
 
-v1.0.6 iki ayrı EXE üretir: kullanıcı token’li mevcut bağlantı ve resmi Discord Bot token’li bağlantı. Bot sürümünde Authorization başlığı `Bot` şemasıyla gönderilir; botun iki sunucuda da bulunması, kaynakta tüm kanalları görebilmesi ve hedefte Administrator yetkisi ile yeterli rol hiyerarşisine sahip olması doğrulanır. Botun atanmış rolleri silinmez. v1.0.5’in 1,5 saniyelik oluşturma/silme aralığı, izinleri son aşamada uygulama ve 429’da beklemeden durma davranışı korunur. [v1.0.6 sürüm notları](RELEASE_NOTES_v1.0.6.md).
+v1.0.7, Bot sürümünde botun rol hiyerarşisinin üstünde/eşit seviyesinde kalan hedef rollerin silinmeye veya düzenlenmeye çalışılmasını engeller. Bu rollerin tamamı otomatik olarak korunur; önizlemede adlarıyla listelenir ve aktarımın geri kalanı devam eder. Bu durumda yeni rollerin sıralaması Discord'un varsayılanında bırakılabilir. Kullanıcı sürümünün önceki hiyerarşi kontrolü korunur. [v1.0.7 sürüm notları](RELEASE_NOTES_v1.0.7.md).
 
 > **Önerilen yöntem Bot sürümüdür.** Kullanıcı token’ini otomasyonda kullanmak Discord’un self-bot kurallarına aykırıdır ve hesabın kapatılmasına neden olabilir.
+
+## Önceki sürüm: v1.0.6
+
+Kullanıcı ve bot için iki ayrı EXE, Bot token doğrulaması, bot yetkisi ve hiyerarşi kontrolleri eklendi. [v1.0.6 sürüm notları](RELEASE_NOTES_v1.0.6.md).
 
 ## Önceki sürüm: v1.0.4
 
@@ -55,9 +59,9 @@ Paketleme davranışı için: [PyInstaller'ın tek dosya çalışma açıklamas�
 ## Kullanım
 
 1. Kullanacağınız EXE’yi açın. Python kurulumu gerekmez.
-2. **Bot sürümü:** Discord Developer Portal’da bir uygulama/bot oluşturun. Botu OAuth2 `bot` kapsamıyla hem kaynak hem hedef sunucuya ekleyin. Kaynakta kopyalanacak tüm kanallarda `View Channel` izni; hedefte `Administrator` izni verin. Botun en üst rolünü hedefte silinecek rollerin üstüne taşıyın. Bot token’ini Bot EXE’ye girin; `Bot ` ön eki isteğe bağlıdır.
+2. **Bot sürümü:** Discord Developer Portal’da bir uygulama/bot oluşturun. Botu OAuth2 `bot` kapsamıyla hem kaynak hem hedef sunucuya ekleyin. Kaynakta kopyalanacak tüm kanallarda `View Channel` izni; hedefte `Administrator` izni verin. Bot token’ini Bot EXE’ye girin; `Bot ` ön eki isteğe bağlıdır. Botun en üst rolünün üstünde/eşit seviyesinde kalan hedef roller otomatik korunur; bunlar değişmez, diğer işlemler sürer.
 3. **Kullanıcı sürümü:** Kullanıcı token’iyle giriş yapar; bu yöntem Discord kuralları nedeniyle önerilmez.
-4. Kaynak/hedef sunucu ID’lerini girip önizlemeyi inceleyin ve aktarımı başlatın. Bot sürümünde botun atanmış rolleri korunur; rol hiyerarşisi uygun değilse silme başlamadan hata verilir.
+4. Kaynak/hedef sunucu ID’lerini girip önizlemeyi inceleyin ve aktarımı başlatın. Bot sürümünde hem botun atanmış rolleri hem de botun yönetemediği yüksek/eşit seviyedeki hedef roller korunur; bu roller için silme veya sıralama isteği gönderilmez.
 
 **Kopyalama hedefte mevcut rol ve kanalları silmeye çalışır. Kanal silinmesi içindeki mesajları da kaybettirebilir. İkinci onay penceresi yoktur; hedef ID’sini önizlemede kontrol edin.** Yerel yedek yalnızca yapı kaydıdır; otomatik geri yükleme ve mesaj kurtarma sağlamaz. İptal/hata tamamlanmış işlemleri geri almaz.
 
@@ -73,7 +77,7 @@ Windows 10/11 x64, Python 3.14 ve PowerShell ile:
 .\build.ps1
 ```
 
-Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.6_Kullanıcı.exe` ve `dist/Sunucu-Kopyalama_v1.0.6_Bot.exe` dosyalarını üretir. Her iki EXE’nin sürüm bilgileri ve paketlenmiş kimlik doğrulama modu ayrı ayrı denetlenir. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
+Bu komut sanal ortamı/bağımlılıkları hazırlar, testleri çalıştırır, `dist/Sunucu-Kopyalama_v1.0.7_Kullanıcı.exe` ve `dist/Sunucu-Kopyalama_v1.0.7_Bot.exe` dosyalarını üretir. Her iki EXE’nin sürüm bilgileri ve paketlenmiş kimlik doğrulama modu ayrı ayrı denetlenir. Derleme bağımlılıklarının kurulumu paket kayıt sistemlerine bağlanır; bu, son kullanıcının EXE çalışma akışından ayrıdır.
 
 Kaynaktan açmak için:
 
@@ -89,4 +93,4 @@ v1.0.1 için 43 otomatik test (31 çekirdek/aktarım, 12 arayüz) ve paketlenmi�
 
 [MIT](LICENSE). CustomTkinter arayüzü/simgesi ve diğer bileşenlerin lisansları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasındadır. Discord ile bağlantılı veya Discord tarafından onaylanmış bir ürün değildir.
 
-Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.6.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.
+Derleme notu: gereksiz toplu paket dosyaları kaldırılmıştır; gerekli font/tema ve çalışma zamanı standart PyInstaller hook’larıyla eklenir. UPX kullanılmaz. Dosya ve ürün sürümü 1.0.7.0, dil Türkçe (Türkiye) olarak doldurulur. Antivirüs motorlarının tümü için temiz sonuç garantisi verilmez.

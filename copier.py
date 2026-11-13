@@ -297,18 +297,19 @@ def preview(api, source_id, target_id):
     # safe position, and leaves every role outside its hierarchy completely alone.
     # The same fallback is used when the bot has too few hierarchy levels to
     # reproduce the source ordering exactly.
-    skip_role_reorder = auth_mode == "bot"
     roles_to_create = len(source["roles"]) - 1
+    skip_role_reorder = bool(
+        auth_mode == "bot" and
+        (unmanageable_role_ids or
+         (actor_top_role_position is not None and actor_top_role_position <= roles_to_create))
+    )
     if auth_mode == "user" and actor_top_role_position is not None and actor_top_role_position <= roles_to_create:
         raise CopyError(
             f"Kaynakta {roles_to_create} rol oluşturulacak; hesabın en üst rolü "
             f"{actor_top_role_position}. sırada. Yeni rollerin hiyerarşide altına yerleşebilmesi için "
             f"en üst rolünü en az {roles_to_create + 1}. sıraya taşıyın. Hiçbir şey silinmedi."
         )
-    role_order_warning = bool(skip_role_reorder and
-                              (unmanageable_role_ids or
-                               (actor_top_role_position is not None and
-                                actor_top_role_position <= roles_to_create)))
+    role_order_warning = skip_role_reorder
     if not source["roles"] or not any(r["id"] == source_id for r in source["roles"]):
         raise CopyError("Kaynak @everyone rolü okunamadı.")
     retained = [r for r in target["roles"] if r.get("managed")]

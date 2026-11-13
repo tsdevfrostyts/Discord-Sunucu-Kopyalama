@@ -284,12 +284,27 @@ def preview(api, source_id, target_id):
             and int(r.get("position", 0)) >= actor_top_role_position
         ]
         unmanageable_role_ids = sorted(r["id"] for r in unmanageable_roles)
+    if auth_mode == "user" and unmanageable_role_ids:
+        role_names = ", ".join(
+            r["name"] for r in target["roles"] if r["id"] in set(unmanageable_role_ids)
+        )
+        raise CopyError(
+            f"En üst rolün ({actor_top_role_position}. sıra), yönetilmesi gereken bazı hedef rollerin "
+            f"üzerinde değil: {role_names}. Aktarımdan önce hesabın en üst rolünü bu rollerin üstüne "
+            "taşıyın. Hiçbir şey silinmedi."
+        )
     # A bot never reorders roles. It creates the source roles at Discord's default
     # safe position, and leaves every role outside its hierarchy completely alone.
     # The same fallback is used when the bot has too few hierarchy levels to
     # reproduce the source ordering exactly.
     skip_role_reorder = auth_mode == "bot"
     roles_to_create = len(source["roles"]) - 1
+    if auth_mode == "user" and actor_top_role_position is not None and actor_top_role_position <= roles_to_create:
+        raise CopyError(
+            f"Kaynakta {roles_to_create} rol oluşturulacak; hesabın en üst rolü "
+            f"{actor_top_role_position}. sırada. Yeni rollerin hiyerarşide altına yerleşebilmesi için "
+            f"en üst rolünü en az {roles_to_create + 1}. sıraya taşıyın. Hiçbir şey silinmedi."
+        )
     role_order_warning = bool(skip_role_reorder and
                               (unmanageable_role_ids or
                                (actor_top_role_position is not None and
@@ -529,6 +544,8 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         step("Rol sıralaması aktarıldı.")
     elif ordered_roles:
         step("Rol sıralaması atlandı: bot hiyerarşi sınırları içindeki rollere dokunulmadı.")
+    else:
+        step("Aktarılacak ek rol bulunmadı.")
     channel_map, expected_channels, created_channels, channel_payloads = {}, {}, {}, {}
     permission_failures = 0
     creation_order = sorted(copy_channels, key=lambda c: (c["type"] != 4, c.get("position", 0), int(c["id"])))

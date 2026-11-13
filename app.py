@@ -150,8 +150,17 @@ class App(ModernWindow):
                     copy_channels = value["copy_channels"]
                     skipped_channels = value["skipped_channels"]
                     categories = sum(c["type"] == 4 for c in copy_channels)
-                    deleted_roles = sum(r["id"] != value["target_id"] and not r.get("managed") for r in t["roles"])
+                    protected_role_ids = set(value.get("protected_role_ids", []))
+                    protected_role_ids.update(value.get("unmanageable_role_ids", []))
+                    deleted_roles = sum(
+                        r["id"] != value["target_id"] and not r.get("managed")
+                        and r["id"] not in protected_role_ids
+                        for r in t["roles"]
+                    )
+                    kept_hierarchy_roles = len(value.get("unmanageable_role_ids", []))
                     text = f"Kaynak: {s['guild']['name']} · {len(s['roles']) - 1} rol, {categories} kategori, {len(copy_channels) - categories} kanal\nHedef: {t['guild']['name']} · {deleted_roles} rol ve {len(t['channels'])} kanal için silme denenecek\nYalnızca rol bazlı kanal izinleri aktarılır. Kişisel izinler ve sunucu ayarları aktarılmaz."
+                    if kept_hierarchy_roles:
+                        text += f"\nRol hiyerarşisi nedeniyle {kept_hierarchy_roles} hedef rol değiştirilmeyecek; diğer işlemler devam edecek."
                     if skipped_channels:
                         text += f"\nKopyalanmayacak özel kanallar: {len(skipped_channels)} (tür 20 ve bağlı kanallar)"
                     if value["warnings"]:

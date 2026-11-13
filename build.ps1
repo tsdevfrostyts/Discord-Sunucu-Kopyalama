@@ -16,13 +16,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Testler başarısız.' }
 $variants = @(
     [pscustomobject]@{
         Mode = 'user'
-        Name = 'Sunucu-Kopyalama_v1.0.6_Kullanıcı'
+        Name = 'Sunucu-Kopyalama_v1.0.7_Kullanıcı'
         VersionFile = 'version_info_user.txt'
         Description = 'Discord sunucu yapısı kopyalama - Kullanıcı sürümü'
     },
     [pscustomobject]@{
         Mode = 'bot'
-        Name = 'Sunucu-Kopyalama_v1.0.6_Bot'
+        Name = 'Sunucu-Kopyalama_v1.0.7_Bot'
         VersionFile = 'version_info_bot.txt'
         Description = 'Discord sunucu yapısı kopyalama - Bot sürümü'
     }

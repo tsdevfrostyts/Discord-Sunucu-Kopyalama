@@ -270,6 +270,8 @@ def preview(api, source_id, target_id):
                 raise CopyError("Botun hedef sunucuda Yönetici (Administrator) yetkisi yok. Bot rolüne Administrator verin; bot rolü korunacaktır. Hiçbir şey silinmedi.")
             raise CopyError("Hedef sunucuda Yönetici (Administrator) yetkisi gerekiyor. Bu hedefte işlem yapılmadı.")
     protected_role_ids = sorted(member_role_ids)
+    unmanageable_role_ids = []
+    actor_top_role_position = None
     if not is_owner:
         actor_top_role_position = max(
             (int(r.get("position", 0)) for r in target["roles"] if r["id"] in member_role_ids),
@@ -281,26 +283,22 @@ def preview(api, source_id, target_id):
             and r["id"] not in member_role_ids
             and int(r.get("position", 0)) >= actor_top_role_position
         ]
-        if unmanageable_roles:
-            role_names = ", ".join(r["name"] for r in sorted(
-                unmanageable_roles, key=lambda item: int(item["id"])
-            )[:3])
-            raise CopyError(
-                f"En üst rolün ({actor_top_role_position}. sıra), yönetilmesi gereken bazı hedef rollerin "
-                f"üzerinde değil: {role_names}. Aktarımdan önce botun/hesabın en üst rolünü bu rollerin "
-                "üstüne taşıyın. Hiçbir şey silinmedi."
-            )
-        roles_to_create = len(source["roles"]) - 1
-        if actor_top_role_position <= roles_to_create:
-            raise CopyError(
-                f"Kaynakta {roles_to_create} rol oluşturulacak; hesabın/botun en üst rolü "
-                f"{actor_top_role_position}. sırada. Yeni rollerin hiyerarşide altına yerleşebilmesi için "
-                f"en üst rolünü en az {roles_to_create + 1}. sıraya taşıyın. Hiçbir şey silinmedi."
-            )
+        unmanageable_role_ids = sorted(r["id"] for r in unmanageable_roles)
+    # A bot never reorders roles. It creates the source roles at Discord's default
+    # safe position, and leaves every role outside its hierarchy completely alone.
+    # The same fallback is used when the bot has too few hierarchy levels to
+    # reproduce the source ordering exactly.
+    skip_role_reorder = auth_mode == "bot"
+    roles_to_create = len(source["roles"]) - 1
+    role_order_warning = bool(skip_role_reorder and
+                              (unmanageable_role_ids or
+                               (actor_top_role_position is not None and
+                                actor_top_role_position <= roles_to_create)))
     if not source["roles"] or not any(r["id"] == source_id for r in source["roles"]):
         raise CopyError("Kaynak @everyone rolü okunamadı.")
     retained = [r for r in target["roles"] if r.get("managed")]
-    if len(source["roles"]) + len(retained) + len(protected_role_ids) > 250 or len(source["channels"]) > 500:
+    if (len(source["roles"]) + len(retained) + len(protected_role_ids)
+            + len(unmanageable_role_ids) > 250 or len(source["channels"]) > 500):
         raise CopyError("Hedefin Discord rol veya kanal sınırı aşılacak.")
     warnings = set()
     if retained:
@@ -310,6 +308,17 @@ def preview(api, source_id, target_id):
         warnings.add(
             f"Hedefte {subject} atanmış {len(protected_role_ids)} rol silinmeyecek; "
             "kopyalama boyunca mevcut yetkilerin korunması için tutulacak."
+        )
+    if unmanageable_role_ids:
+        protected_names = [r["name"] for r in target["roles"] if r["id"] in set(unmanageable_role_ids)]
+        warnings.add(
+            f"Rol hiyerarşisi nedeniyle {len(unmanageable_role_ids)} hedef rol değiştirilmeyecek "
+            f"ve silinmeyecek: {', '.join(protected_names)}. Diğer aktarım adımları devam edecek."
+        )
+    if role_order_warning:
+        warnings.add(
+            "Bot rol hiyerarşisinin dışındaki rollere dokunmamak için yeni rollerin sıralaması "
+            "Discord'un varsayılanında bırakılacak; mevcut hedef rollerin sırası değiştirilmeyecek."
         )
     if any(r.get("managed") for r in source["roles"]):
         warnings.add("Kaynak entegrasyon rolleri normal rol olarak oluşturulur; bot bağlantıları aktarılmaz.")
@@ -355,7 +364,10 @@ def preview(api, source_id, target_id):
     return {"source_id": source_id, "target_id": target_id, "source": source, "target": target,
             "copy_channels": copy_channels, "skipped_channels": skipped_channels,
             "user_id": user["id"], "auth_mode": auth_mode,
-            "protected_role_ids": protected_role_ids, "warnings": sorted(warnings)}
+            "protected_role_ids": protected_role_ids,
+            "unmanageable_role_ids": unmanageable_role_ids,
+            "skip_role_reorder": skip_role_reorder,
+            "warnings": sorted(warnings)}
 
 
 def backup(plan, directory):
@@ -381,7 +393,8 @@ def verify(api, plan, roles, channels, expected_channels, failed_deletions):
     final_channels = {c["id"]: c for c in final["channels"]}
     expected_role_ids = (set(roles.values())
                          | {r["id"] for r in plan["target"]["roles"] if r.get("managed")}
-                         | set(plan.get("protected_role_ids", [])))
+                         | set(plan.get("protected_role_ids", []))
+                         | set(plan.get("unmanageable_role_ids", [])))
     if (not expected_role_ids <= set(final_roles) or set(final_roles) - expected_role_ids - set(failed_deletions["roles"])
             or not set(channels.values()) <= set(final_channels)
             or set(final_channels) - set(channels.values()) - set(failed_deletions["channels"])):
@@ -397,9 +410,22 @@ def verify(api, plan, roles, channels, expected_channels, failed_deletions):
         colors = actual.get("colors") or {"primary_color": actual.get("color", 0)}
         if colors.get("primary_color") != expected["colors"]["primary_color"]:
             raise CopyError("Son kontrolde rol rengi uyuşmadı.")
-    actual_order = sorted(ordered, key=lambda r: (final_roles[roles[r["id"]]]["position"], int(roles[r["id"]])))
-    if [r["id"] for r in actual_order] != [r["id"] for r in ordered]:
-        raise CopyError("Son kontrolde rol sırası uyuşmadı. Hedefi Discord’da inceleyin.")
+    if not plan.get("skip_role_reorder", False):
+        actual_order = sorted(ordered, key=lambda r: (final_roles[roles[r["id"]]]["position"], int(roles[r["id"]])))
+        if [r["id"] for r in actual_order] != [r["id"] for r in ordered]:
+            raise CopyError("Son kontrolde rol sırası uyuşmadı. Hedefi Discord’da inceleyin.")
+
+    # These roles are explicitly outside the actor's hierarchy. Confirm their
+    # existing properties survived unchanged; never PATCH, DELETE or reorder them.
+    for role_id in plan.get("unmanageable_role_ids", []):
+        original = next(r for r in plan["target"]["roles"] if r["id"] == role_id)
+        actual = final_roles[role_id]
+        for key in ("name", "permissions", "color", "hoist", "mentionable", "managed", "icon", "unicode_emoji"):
+            if actual.get(key) != original.get(key):
+                raise CopyError(
+                    f"Korunan rolün bir özelliği dışarıdan değişti: {original['name']}. "
+                    "Uygulama bu role yazma isteği göndermedi."
+                )
     def permissions(value):
         return sorted((str(o["id"]), o["type"], str(o.get("allow", "0")), str(o.get("deny", "0"))) for o in value)
     for original_id, expected in expected_channels.items():
@@ -436,14 +462,19 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
     copy_channels, skipped_channels = fresh["copy_channels"], fresh["skipped_channels"]
     sid, tid = fresh["source_id"], fresh["target_id"]
     protected_role_ids = set(fresh.get("protected_role_ids", []))
+    unmanageable_role_ids = set(fresh.get("unmanageable_role_ids", []))
     deletable_roles = [r for r in target["roles"]
-                       if r["id"] != tid and not r.get("managed") and r["id"] not in protected_role_ids]
+                       if r["id"] != tid and not r.get("managed")
+                       and r["id"] not in protected_role_ids
+                       and r["id"] not in unmanageable_role_ids]
     managed_roles = [r for r in target["roles"] if r.get("managed")]
     protected_roles = [r for r in target["roles"]
                        if r["id"] in protected_role_ids and not r.get("managed")]
+    unmanageable_roles = [r for r in target["roles"] if r["id"] in unmanageable_role_ids]
     failed_deletions = {"roles": [], "channels": []}
     total = (len(target["channels"]) + len(deletable_roles) + len(managed_roles)
-             + len(protected_roles) + len(source["roles"]) - 1 + len(source["channels"])
+             + len(protected_roles) + len(unmanageable_roles)
+             + len(source["roles"]) - 1 + len(source["channels"])
              + len(copy_channels) + 3)
     done = 0
     def step(text):
@@ -478,7 +509,12 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         failed_deletions["roles"].append(role["id"])
         step(f"SİLİNEMEDİ | Rol: {role['name']} ({role['id']}): Discord tarafından yönetilen rol; devam ediliyor.")
     for role in protected_roles:
-        step(f"KORUNDU | Rol: {role['name']} ({role['id']}) · Hesabına atanmış olduğu için mevcut yetkilerin korunması amacıyla silinmedi.")
+        step(f"KORUNDU | Rol: {role['name']} ({role['id']}) · Hesabına/Bot hesabına atanmış olduğu için silinmedi.")
+    for role in unmanageable_roles:
+        step(
+            f"KORUNDU | Rol: {role['name']} ({role['id']}) · Botun rol hiyerarşisi nedeniyle "
+            "değiştirilmeyecek veya silinmeyecek."
+        )
     remaining = snapshot(api, tid)
     if len(remaining["roles"]) + len(source["roles"]) - 1 > 250 or len(remaining["channels"]) + len(copy_channels) > 500:
         raise CopyError("Silinemeyen öğeler nedeniyle Discord rol/kanal sınırı aşılacak. Kopyalama için hedefte yer açın.")
@@ -488,9 +524,11 @@ def execute(api, plan, directory, log=lambda text: None, progress=lambda done, t
         result = api.request("POST", f"/guilds/{tid}/roles", role_payload(role))
         role_map[role["id"]] = result["id"]
         step(f"Rol oluşturuldu: {role['name']}")
-    if ordered_roles:
+    if ordered_roles and not fresh.get("skip_role_reorder", False):
         api.request("PATCH", f"/guilds/{tid}/roles", [{"id": role_map[r["id"]], "position": i} for i, r in enumerate(ordered_roles, 1)])
-    step("Rol sıralaması aktarıldı.")
+        step("Rol sıralaması aktarıldı.")
+    elif ordered_roles:
+        step("Rol sıralaması atlandı: bot hiyerarşi sınırları içindeki rollere dokunulmadı.")
     channel_map, expected_channels, created_channels, channel_payloads = {}, {}, {}, {}
     permission_failures = 0
     creation_order = sorted(copy_channels, key=lambda c: (c["type"] != 4, c.get("position", 0), int(c["id"])))

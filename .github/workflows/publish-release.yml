@@ -32,4 +32,4 @@ jobs:
               throw "Release asset was not produced: $asset"
             }
           }
-          gh release create $tag $userAsset $botAsset --target $env:GITHUB_SHA --title "Sunucu Kopyalama v1.0.7" --notes-file RELEASE_NOTES_v1.0.7.md
+          gh release create $tag $userAsset $botAsset --target $env:GITHUB_SHA --title "Sunucu Kopyalama v1.0.7" --notes-file docs/releases/RELEASE_NOTES_v1.0.7.md

@@ -1,6 +1,9 @@
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
+$buildDirectory = Join-Path $PSScriptRoot 'build'
+New-Item -ItemType Directory -Path $buildDirectory -Force | Out-Null
+
 if (-not (Test-Path -LiteralPath '.venv\Scripts\python.exe')) {
     python -m venv .venv
     if ($LASTEXITCODE -ne 0) { throw 'Python ortamı oluşturulamadı.' }
@@ -17,19 +20,19 @@ $variants = @(
     [pscustomobject]@{
         Mode = 'user'
         Name = 'Sunucu-Kopyalama_v1.0.7_Kullanıcı'
-        VersionFile = 'version_info_user.txt'
+        VersionFile = 'packaging/version_info_user.txt'
         Description = 'Discord sunucu yapısı kopyalama - Kullanıcı sürümü'
     },
     [pscustomobject]@{
         Mode = 'bot'
         Name = 'Sunucu-Kopyalama_v1.0.7_Bot'
-        VersionFile = 'version_info_bot.txt'
+        VersionFile = 'packaging/version_info_bot.txt'
         Description = 'Discord sunucu yapısı kopyalama - Bot sürümü'
     }
 )
 
 foreach ($variant in $variants) {
-    & $python -m PyInstaller --noconfirm --clean --onefile --windowed --noupx --add-data 'assets;assets' --add-data 'THIRD_PARTY_NOTICES.md;.' --add-data 'LICENSE;.' --icon assets/app.ico --version-file $variant.VersionFile --name $variant.Name app.py
+    & $python -m PyInstaller --noconfirm --clean --onefile --windowed --noupx --specpath $buildDirectory --add-data 'assets;assets' --add-data 'THIRD_PARTY_NOTICES.md;.' --add-data 'LICENSE;.' --icon assets/app.ico --version-file $variant.VersionFile --name $variant.Name app.py
     if ($LASTEXITCODE -ne 0) { throw "EXE derlenemedi: $($variant.Name)" }
 
     $exeName = "$($variant.Name).exe"

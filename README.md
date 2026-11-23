@@ -8,7 +8,6 @@ Windows 10/11 (64-bit) için Discord sunucularının **rol, kategori, kanal ve r
 
 ## İndirme
 
-
 **Güncel sürüm: v1.0.7** · [Tüm sürümleri ve indirmeleri aç](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/releases)
 
 | Dosya | Ne zaman kullanılmalı? |
@@ -143,16 +142,26 @@ Mevcut yayın iş akışında Windows'un güvenilir bir sertifika otoritesi tara
 
 ## Sürüm notları
 
-- **[v1.0.7](RELEASE_NOTES_v1.0.7.md):** Botun rol hiyerarşisi nedeniyle yönetemediği hedef roller güvenli biçimde korunur; diğer aktarım adımları devam eder.
-- **[v1.0.6](RELEASE_NOTES_v1.0.6.md):** Kullanıcı ve Bot için iki ayrı EXE, bot token doğrulaması ve bot yetki kontrolleri.
-- **[v1.0.5](RELEASE_NOTES_v1.0.5.md):** İstek sınırı ve kanal oluşturma sırasına ilişkin düzeltmeler.
-- **[v1.0.4](RELEASE_NOTES_v1.0.4.md):** Hedefte hesaba atanmış rollerin korunması.
-- **[v1.0.3](RELEASE_NOTES_v1.0.3.md):** Kanal izinleriyle ilgili Discord API `50013` hatası için düzeltmeler.
-- **[v1.0.2](RELEASE_NOTES_v1.0.2.md):** Desteklenmeyen kanal türü `20` ve bağlı kanalların güvenli biçimde atlanması.
+- **[v1.0.7](docs/releases/RELEASE_NOTES_v1.0.7.md):** Botun rol hiyerarşisi nedeniyle yönetemediği hedef roller güvenli biçimde korunur; diğer aktarım adımları devam eder.
+- **[v1.0.6](docs/releases/RELEASE_NOTES_v1.0.6.md):** Kullanıcı ve Bot için iki ayrı EXE, bot token doğrulaması ve bot yetki kontrolleri.
+- **[v1.0.5](docs/releases/RELEASE_NOTES_v1.0.5.md):** İstek sınırı ve kanal oluşturma sırasına ilişkin düzeltmeler.
+- **[v1.0.4](docs/releases/RELEASE_NOTES_v1.0.4.md):** Hedefte hesaba atanmış rollerin korunması.
+- **[v1.0.3](docs/releases/RELEASE_NOTES_v1.0.3.md):** Kanal izinleriyle ilgili Discord API `50013` hatası için düzeltmeler.
+- **[v1.0.2](docs/releases/RELEASE_NOTES_v1.0.2.md):** Desteklenmeyen kanal türü `20` ve bağlı kanalların güvenli biçimde atlanması.
 
 ## Test ve doğrulama
 
 [v1.0.7 Windows yayın iş akışı](https://github.com/tsdevfrostyts/Discord-Sunucu-Kopyalama/actions/runs/43334308649) başarıyla tamamlandı. İş akışı `test_copier` ve `test_ui` testlerini çalıştırır; iki EXE'yi ayrı ayrı derler, sürüm bilgilerini ve paketlenmiş arayüz/kimlik doğrulama modunu kontrol eder. Testler sahte Discord API yanıtlarıyla yapılır; bu, her olası gerçek sunucu yapılandırmasında canlı aktarımın test edildiği anlamına gelmez.
+
+## Depo yapısı
+
+- `app.py`: masaüstü uygulamasının giriş noktası ve arayüz akışı.
+- `copier.py`: Discord API bağlantısı, önizleme, aktarım ve doğrulama işlemleri.
+- `modern_ui.py` ve `assets/`: arayüz bileşenleri ve görsel dosyalar.
+- `docs/releases/`: sürüm geçmişi ve her sürümün değişiklik notları.
+- `packaging/`: Kullanıcı ve Bot EXE dosyalarının Windows sürüm bilgileri.
+- `test_copier.py` ve `test_ui.py`: otomatik aktarım ve arayüz testleri.
+- `build.ps1`: test, Windows EXE derleme ve paket öz denetim adımları.
 
 ## Lisans ve üçüncü taraf bileşenler
 
